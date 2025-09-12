@@ -1,0 +1,56 @@
+# --- Normalize text line endings to LF everywhere ---
+*          text=auto eol=lf
+# Unity YAML (text)
+*.unity filter=lfs diff=lfs merge=lfs -text
+*.prefab filter=lfs diff=lfs merge=lfs -text
+*.asset      text eol=lf
+*.mat filter=lfs diff=lfs merge=lfs -text
+*.anim filter=lfs diff=lfs merge=lfs -text
+*.controller text eol=lf
+*.meta       text eol=lf
+# Code & configs (text)
+*.cs         text eol=lf
+*.shader     text eol=lf
+*.cginc      text eol=lf
+*.uxml       text eol=lf
+*.uss        text eol=lf
+*.json       text eol=lf
+*.yml        text eol=lf
+*.yaml       text eol=lf
+*.md         text eol=lf
+*.txt        text eol=lf
+*.xml        text eol=lf
+# --- Binary assets (do NOT normalize) + LFS ---
+# Images / Textures
+*.png   filter=lfs diff=lfs merge=lfs -text
+*.jpg   filter=lfs diff=lfs merge=lfs -text
+*.jpeg  filter=lfs diff=lfs merge=lfs -text
+*.tga   filter=lfs diff=lfs merge=lfs -text
+*.tif   filter=lfs diff=lfs merge=lfs -text
+*.tiff  filter=lfs diff=lfs merge=lfs -text
+*.exr   filter=lfs diff=lfs merge=lfs -text
+*.psd   filter=lfs diff=lfs merge=lfs -text
+*.hdr   filter=lfs diff=lfs merge=lfs -text
+# Models
+*.fbx   filter=lfs diff=lfs merge=lfs -text
+*.obj   filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=lfs merge=lfs -text
+# Audio / Video
+*.wav   filter=lfs diff=lfs merge=lfs -text
+*.mp3   filter=lfs diff=lfs merge=lfs -text
+*.ogg   filter=lfs diff=lfs merge=lfs -text
+*.mp4   filter=lfs diff=lfs merge=lfs -text
+*.mov   filter=lfs diff=lfs merge=lfs -text
+# Fonts
+*.ttf   filter=lfs diff=lfs merge=lfs -text
+*.otf   filter=lfs diff=lfs merge=lfs -text
+# Lightmaps / GI
+*.lighting filter=lfs diff=lfs merge=lfs -text
+# (Options) lock binary to avoid conflict
+# *.fbx     lockable
+# *.psd     lockable
+# *.png     lockable
+# *.wav     lockable
+*.bundle filter=lfs diff=lfs merge=lfs -text
+*.so filter=lfs diff=lfs merge=lfs -text
+Assets/Firebase/Plugins/** filter=lfs diff=lfs merge=lfs -text
