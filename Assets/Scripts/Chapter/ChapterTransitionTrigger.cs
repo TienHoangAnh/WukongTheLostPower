@@ -16,7 +16,6 @@ public class ChapterTransitionTrigger : MonoBehaviour
             {
                 Debug.Log("🌀 Đang chuyển scene...");
 
-                // Tăng chapter và load
                 ChapterManager.Instance.AdvanceChapter();
                 string nextScene = ChapterManager.Instance.GetNextChapterName();
                 SceneManager.LoadScene(nextScene);
@@ -26,7 +25,6 @@ public class ChapterTransitionTrigger : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log("Trigger something"); // thử nghiệm
         if (other.CompareTag("Player"))
         {
             isPlayerInZone = true;

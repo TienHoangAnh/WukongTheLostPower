@@ -4,16 +4,16 @@ public class ChapterManager : MonoBehaviour
 {
     public static ChapterManager Instance { get; private set; }
 
-    [Header("Cài đặt chương")]
+    [Header("Set Size Chapter")]
     public int currentChapter = 1;
-    public int maxChapter = 5;
+    public int maxChapter = 4;
 
     void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject); // Giữ lại khi chuyển scene
+            DontDestroyOnLoad(gameObject); 
         }
         else
         {
@@ -28,7 +28,7 @@ public class ChapterManager : MonoBehaviour
 
     public bool HasNextChapter()
     {
-        return currentChapter < maxChapter;
+        return currentChapter <= maxChapter;
     }
 
     public void AdvanceChapter()

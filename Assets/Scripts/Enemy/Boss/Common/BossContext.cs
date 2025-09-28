@@ -17,7 +17,6 @@ public class BossContext : MonoBehaviour, ICharacter
 
     void Start()
     {
-        // Kiểm tra null cho stats
         if (stats == null)
         {
             Debug.LogError("❌ BossStats chưa được gán!");
@@ -25,7 +24,6 @@ public class BossContext : MonoBehaviour, ICharacter
             return;
         }
 
-        // Kiểm tra null cho NavMeshAgent
         agent = GetComponent<NavMeshAgent>();
         if (agent == null)
         {
@@ -37,7 +35,6 @@ public class BossContext : MonoBehaviour, ICharacter
         agent.speed = stats.moveSpeed;
         currentHealth = stats.maxHealth;
 
-        // Kiểm tra null cho player
         player = GameObject.FindGameObjectWithTag("Player")?.transform;
         if (player == null)
         {
@@ -46,7 +43,6 @@ public class BossContext : MonoBehaviour, ICharacter
             return;
         }
 
-        // Kiểm tra null cho bossDropItems
         if (bossDropItems == null || bossDropItems.Length == 0)
         {
             Debug.LogWarning("⚠️ bossDropItems chưa được gán hoặc rỗng!");
@@ -71,7 +67,7 @@ public class BossContext : MonoBehaviour, ICharacter
     public void SetStrategy(IBossAttackStrategy strategy)
     {
         attackStrategy = strategy;
-        strategy.Configure(this); // gán chỉ số tương ứng
+        strategy.Configure(this); 
     }
 
     public void PerformAttack()

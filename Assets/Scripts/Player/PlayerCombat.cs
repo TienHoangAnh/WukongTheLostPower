@@ -1,4 +1,6 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class PlayerCombat : MonoBehaviour
@@ -9,13 +11,32 @@ public class PlayerCombat : MonoBehaviour
     public LayerMask enemyLayer;
 
     [Header("Ranged Attack Settings")]
-    public GameObject projectilePrefab;
+    public GameObject projectilePrefab;          // Prefab phân thân (có RangedClone)
     public float spawnRadius = 1.5f;
     public int numberOfProjectiles = 3;
-    public float launchDelay = 1.5f; // Thời gian trồi lên
-    public float attackDistance = 15f; // Phạm vi tìm enemy
+    public float launchDelay = 1.0f;             // thời gian “trồi lên”
+    public float attackDistance = 15f;           // phạm vi tìm enemy
+    public float rangedDamage = 14f;             // damage khi va chạm
+    public float projectileSpeed = 12f;          // tốc độ lao
+    [Range(0f, 720f)] public float turnRate = 360f; // tốc độ quay đầu homing (deg/s)
+    public float impactRadius = 1.0f;            // bán kính nổ khi chạm
+    public float knockbackForce = 8f;            // lực hất
+    public float rangedCooldown = 2.0f;          // CD phím J
+    public AnimationCurve riseCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+
+    [Header("FX (Optional)")]
+    public GameObject spawnVFX;
+    public GameObject impactVFX;
+    public AudioClip spawnSFX;
+    public AudioClip impactSFX;
+
+    [Header("Layers/Tags")]
+    public LayerMask obstacleMask;               // nếu muốn kiểm LOS
+    public string projectileLayerName = "PlayerProjectile";
+    public string enemyTag = "Enemy";            // nếu muốn lọc tag
 
     private PlayerBehaviorTracker behaviorTracker;
+    private bool rangedOnCooldown;
 
     void Start()
     {
@@ -25,14 +46,16 @@ public class PlayerCombat : MonoBehaviour
     void Update()
     {
         if (Input.GetMouseButtonDown(0))
-        {
             AttackMelee();
-        }
 
         if (Input.GetKeyDown(KeyCode.J))
-        {
-            StartCoroutine(FireRangedAttack());
-        }
+            TryFireRanged();
+    }
+
+    void TryFireRanged()
+    {
+        if (rangedOnCooldown) return;
+        StartCoroutine(FireRangedAttack());
     }
 
     void AttackMelee()
@@ -51,14 +74,8 @@ public class PlayerCombat : MonoBehaviour
             }
         }
 
-        if (hitEnemy)
-        {
-            behaviorTracker?.RecordMeleeAttack();
-        }
-        else
-        {
-            Debug.Log("🛡 Cận chiến không trúng kẻ địch nào");
-        }
+        if (hitEnemy) behaviorTracker?.RecordMeleeAttack();
+        else Debug.Log("🛡 Cận chiến không trúng kẻ địch nào");
     }
 
     IEnumerator FireRangedAttack()
@@ -69,67 +86,107 @@ public class PlayerCombat : MonoBehaviour
             yield break;
         }
 
-        Transform player = transform;
+        // 1) Tìm enemy trong phạm vi, sắp xếp theo khoảng cách (gần nhất trước)
+        Collider[] colHits = Physics.OverlapSphere(transform.position, attackDistance, enemyLayer);
+        if (colHits.Length == 0)
+        {
+            Debug.Log("❌ Không có enemy trong phạm vi tầm xa");
+            yield break;
+        }
 
-        GameObject[] spawned = new GameObject[numberOfProjectiles];
-        Vector3[] startPositions = new Vector3[numberOfProjectiles];
-        Vector3[] endPositions = new Vector3[numberOfProjectiles];
+        var enemies = colHits
+            .Select(h => h.transform)
+            .Where(t => t != null && t.gameObject.activeInHierarchy)
+            .OrderBy(t => (t.position - transform.position).sqrMagnitude)
+            .ToList();
+
+        // 2) Spawn phân thân xung quanh người chơi + pha trồi lên
+        Transform player = transform;
+        var spawned = new List<GameObject>(numberOfProjectiles);
+        var startPos = new Vector3[numberOfProjectiles];
+        var endPos = new Vector3[numberOfProjectiles];
 
         for (int i = 0; i < numberOfProjectiles; i++)
         {
-            Vector3 offset = Quaternion.Euler(0, i * (360 / numberOfProjectiles), 0) * Vector3.forward;
-            startPositions[i] = player.position + offset * spawnRadius + Vector3.up * 1.5f; // Sửa lại spawn phía trên mặt đất
-            endPositions[i] = startPositions[i] + Vector3.up * 2.5f;
+            float angle = i * (360f / numberOfProjectiles);
+            Vector3 offset = Quaternion.Euler(0, angle, 0) * Vector3.forward;
+            startPos[i] = player.position + offset * spawnRadius + Vector3.up * 0.25f;
+            endPos[i] = startPos[i] + Vector3.up * 2.5f;
 
-            spawned[i] = Instantiate(projectilePrefab, startPositions[i], Quaternion.identity);
+            GameObject go = Instantiate(projectilePrefab, startPos[i], Quaternion.identity);
+            if (!string.IsNullOrEmpty(projectileLayerName))
+            {
+                int layer = LayerMask.NameToLayer(projectileLayerName);
+                if (layer >= 0) go.layer = layer;
+            }
+
+            // đảm bảo có RangedClone
+            var clone = go.GetComponent<RangedClone>();
+            if (clone == null) clone = go.AddComponent<RangedClone>();
+
+            // cấu hình cơ bản cho clone (chưa set target lúc này)
+            clone.Init(new RangedClone.Config
+            {
+                damage = rangedDamage,
+                speed = projectileSpeed,
+                turnRateDegPerSec = turnRate,
+                impactRadius = impactRadius,
+                knockbackForce = knockbackForce,
+                enemyLayer = enemyLayer,
+                obstacleMask = obstacleMask,
+                enemyTag = enemyTag,
+                impactVFX = impactVFX,
+                impactSFX = impactSFX
+            });
+
+            spawned.Add(go);
+
+            if (spawnVFX) Instantiate(spawnVFX, startPos[i], Quaternion.identity);
+            if (spawnSFX) AudioSource.PlayClipAtPoint(spawnSFX, startPos[i], 0.9f);
         }
 
-        float elapsed = 0f;
-        while (elapsed < launchDelay)
+        // Pha trồi lên (clone CHỜ target, KHÔNG tự hủy)
+        float t = 0f;
+        while (t < launchDelay)
         {
-            for (int i = 0; i < spawned.Length; i++)
+            float k = Mathf.Clamp01(t / launchDelay);
+            float eased = riseCurve != null ? riseCurve.Evaluate(k) : k;
+
+            for (int i = 0; i < spawned.Count; i++)
             {
-                if (spawned[i] != null)
-                {
-                    spawned[i].transform.position = Vector3.Lerp(startPositions[i], endPositions[i], elapsed / launchDelay);
-                }
+                if (spawned[i])
+                    spawned[i].transform.position = Vector3.Lerp(startPos[i], endPos[i], eased);
             }
-            elapsed += Time.deltaTime;
+            t += Time.deltaTime;
             yield return null;
         }
 
-        Collider[] hits = Physics.OverlapSphere(player.position, attackDistance, enemyLayer);
-        if (hits.Length > 0)
+        // 3) Gán mục tiêu cho từng phân thân (nếu enemy ít, sẽ lặp lại)
+        for (int i = 0; i < spawned.Count; i++)
         {
-            Transform target = hits[0].transform;
+            if (!spawned[i]) continue;
+            var clone = spawned[i].GetComponent<RangedClone>();
+            if (!clone) continue;
 
-            foreach (var cube in spawned)
-            {
-                if (cube != null)
-                {
-                    RangedProjectile proj = cube.GetComponent<RangedProjectile>();
-                    if (proj != null)
-                        proj.SetTarget(target);
-                }
-            }
+            Transform target = enemies[i % enemies.Count];
+            clone.SetTarget(target, transform);
+        }
 
-            Debug.Log("🎯 Đòn tầm xa đã được kích hoạt");
-            behaviorTracker?.RecordRangedAttack();
-        }
-        else
-        {
-            Debug.Log("❌ Không có enemy trong phạm vi tầm xa");
-            foreach (var cube in spawned)
-            {
-                if (cube != null)
-                    Destroy(cube);
-            }
-        }
+        Debug.Log("🎯 Đòn tầm xa đã được kích hoạt");
+        behaviorTracker?.RecordRangedAttack();
+
+        // 4) Cooldown
+        rangedOnCooldown = true;
+        yield return new WaitForSeconds(rangedCooldown);
+        rangedOnCooldown = false;
     }
 
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position + transform.forward, attackRange);
+
+        Gizmos.color = new Color(0.2f, 0.8f, 1f, 0.35f);
+        Gizmos.DrawWireSphere(transform.position, attackDistance);
     }
 }

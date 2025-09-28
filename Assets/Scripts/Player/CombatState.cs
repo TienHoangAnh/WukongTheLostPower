@@ -1,5 +1,4 @@
-﻿// Scripts/Player/CombatState.cs
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 
 public class CombatState : IMovementState

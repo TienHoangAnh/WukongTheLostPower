@@ -2,16 +2,12 @@
 
 public class EnemyAttackState : IEnemyState
 {
-    float attackCooldown = 1.5f;
-    float timer = 0.5f;
-
     public void EnterState(EnemyAIContext context)
     {
-        if (context.agent != null)
-            context.agent.isStopped = true;
-
-        timer = attackCooldown; // Cho phép đánh ngay
-        //Debug.Log("Enemy vào trạng thái ATTACK");
+        if (context.agent != null) context.agent.isStopped = true;
+        if (context.animator != null)
+            context.animator.SetBool(Animator.StringToHash("IsChasing"), false);
+        Debug.Log("[EnemyAttackState] Enter ATTACK");
     }
 
     public void UpdateState(EnemyAIContext context)
@@ -22,40 +18,35 @@ public class EnemyAttackState : IEnemyState
             return;
         }
 
-        if (!context.IsPlayerInRange(context.attackRange))
+        bool inDetect = context.IsPlayerInRange(context.detectDistance);
+        bool inAttack = context.IsPlayerInRange(context.attackDistance);
+
+        if (!inDetect)
+        {
+            context.SwitchState(new EnemyIdleState());
+            return;
+        }
+
+        if (!inAttack)
         {
             context.SwitchState(new EnemyChaseState());
             return;
         }
 
-        timer += Time.deltaTime;
+        // Trong tầm đánh: xoay mặt & đánh theo cooldown
+        context.FaceTargetFlat();
 
-        if (timer >= attackCooldown)
+        if (context.CanAttackNow())
         {
-            timer = 0f;
-
-            Transform playerTf = context.GetPlayerTransform();
-            if (playerTf == null) return;
-
-            ICharacter player = playerTf.GetComponent<ICharacter>();
-            if (player != null)
-            {
-                player.TakeDamage(context.damage);
-                Debug.Log("Enemy đã tấn công Player!");
-            }
-
-            if (context.animator != null)
-            {
-                context.animator.SetTrigger("Attack");
-            }
+            int attackIndex = (Random.value <= context.chanceAttack2) ? 2 : 1;
+            context.TriggerAttackAnimationAndRegisterIndex(attackIndex);
+            // Damage sẽ áp dụng bằng Animation Event PerformAttackHit() ở đúng frame
         }
     }
 
     public void ExitState(EnemyAIContext context)
     {
-        if (context.agent != null)
-            context.agent.isStopped = false;
-
-        //Debug.Log("Enemy rời trạng thái ATTACK");
+        if (context.agent != null) context.agent.isStopped = false;
+        Debug.Log("[EnemyAttackState] Exit ATTACK");
     }
 }

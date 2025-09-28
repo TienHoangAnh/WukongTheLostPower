@@ -96,7 +96,7 @@ public class MenuUIManager : MonoBehaviour
 #if UNITY_STANDALONE || UNITY_EDITOR
         if (manageCursor) { Cursor.visible = false; Cursor.lockState = CursorLockMode.Locked; }
 #endif
-        SafeSet(uiIngameForPC, true);
+        SafeSet(uiIngameForPC, false);
         SafeSet(menuRoot, false);
         SafeSet(mainPanel, false);
         SafeSet(settingsPanel, false);
