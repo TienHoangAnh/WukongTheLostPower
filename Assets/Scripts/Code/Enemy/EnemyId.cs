@@ -1,6 +1,5 @@
 using UnityEngine;
 
-// COPILOT: attach this to enemy prefabs. In editor, ensure id is unique.
 public class EnemyId : MonoBehaviour
 {
     public string id;

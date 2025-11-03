@@ -1,5 +1,5 @@
-using System.Collections.Generic;
 using UnityEngine;
+using System.Collections.Generic;
 
 [CreateAssetMenu(fileName = "ComboData", menuName = "Combat/ComboData")]
 public class ComboData : ScriptableObject

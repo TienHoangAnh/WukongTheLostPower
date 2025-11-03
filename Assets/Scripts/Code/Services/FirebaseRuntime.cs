@@ -22,7 +22,6 @@ public static class FirebaseRuntime
         if (dep != DependencyStatus.Available)
             throw new Exception($"Firebase deps: {dep}");
 
-        // 1) Create app from StreamingAssets config (không đụng DefaultInstance)
         if (App == null)
         {
             string path = Path.Combine(Application.streamingAssetsPath, "firebase_appconfig.json");
@@ -40,17 +39,14 @@ public static class FirebaseRuntime
                 StorageBucket = cfg.storageBucket
             };
 
-            // Nếu app tên mặc định đã tồn tại do lần chạy trước → dùng tên khác
             try { App = FirebaseApp.Create(opts); }
             catch
             {
-                // Fallback: thử lấy app mặc định nếu đã có (trường hợp editor domain reload)
                 try { App = FirebaseApp.GetInstance("[DEFAULT]"); }
                 catch (Exception e) { throw new Exception("Cannot create or get FirebaseApp", e); }
             }
         }
 
-        // 2) Auth & Firestore gắn với app vừa tạo (không dùng DefaultInstance)
         Auth = FirebaseAuth.GetAuth(App);
         Db = FirebaseFirestore.GetInstance(App);
 

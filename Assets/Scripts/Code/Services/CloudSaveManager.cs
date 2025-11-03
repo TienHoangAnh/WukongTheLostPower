@@ -6,6 +6,7 @@ using UnityEngine;
 using Firebase.Firestore;
 #endif
 
+/// Local-first save orchestrator (newest-wins via lastSavedAtUnix in ms)
 public static class CloudSaveManager
 {
     public static string CurrentSlotId = "slotA";
@@ -14,66 +15,85 @@ public static class CloudSaveManager
     {
         CurrentSlotId = slotId;
 
+        // 1) Local first
+        SaveSlotDTO local = null;
+        LocalCache.TryRead(slotId, out local);
+
 #if FIREBASE_ENABLED
+        SaveSlotDTO remote = null;
         try
         {
             await FirebaseRuntime.EnsureInitializedAsync();
-
-            var dto = await FirebaseLoad(slotId);
-            if (dto == null)
-            {
-                dto = NewDefault(playerName);
-                await FirebaseSave(slotId, dto);
-            }
-
-            LocalCache.Write(slotId, dto); // backup local
-            return dto;
+            remote = await FirebaseLoad(slotId);
         }
         catch (Exception ex)
         {
-            Debug.LogWarning($"[CloudSaveManager] Firebase failed → local fallback: {ex.Message}");
-            if (LocalCache.TryRead(slotId, out var local)) return local;
-
-            var dto = NewDefault(playerName);
-            LocalCache.Write(slotId, dto);
-            return dto;
+            Debug.LogWarning($"[CloudSaveManager] Firebase load failed, using local. {ex.Message}");
         }
+
+        var resolved = Resolve(local, remote);
+        if (resolved == null)
+        {
+            resolved = NewDefault(slotId, playerName);
+            LocalCache.Write(slotId, resolved);
+            _ = SafeFirebaseSave(slotId, resolved);
+            return resolved;
+        }
+
+        LocalCache.Write(slotId, resolved);
+        if (remote == null || resolved.lastSavedAtUnix > remote.lastSavedAtUnix)
+            _ = SafeFirebaseSave(slotId, resolved);
+
+        return resolved;
 #else
-        if (LocalCache.TryRead(slotId, out var local2)) return local2;
-        var dto2 = NewDefault(playerName);
-        LocalCache.Write(slotId, dto2);
-        return dto2;
+        if (local != null) return local;
+        var dto = NewDefault(slotId, playerName);
+        LocalCache.Write(slotId, dto);
+        return dto;
 #endif
     }
 
     public static async Task SaveNow(SaveSlotDTO dto)
     {
         if (dto == null) return;
-        dto.lastSavedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
-        // luôn ghi local
+        TouchTimestamp(dto);
         LocalCache.Write(CurrentSlotId, dto);
 
 #if FIREBASE_ENABLED
-        try
-        {
-            await FirebaseRuntime.EnsureInitializedAsync();
-            await FirebaseSave(CurrentSlotId, dto);
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning($"[CloudSaveManager] Firebase save failed, kept local. {ex.Message}");
-        }
+        await SafeFirebaseSave(CurrentSlotId, dto);
 #endif
     }
 
-    public static bool TryLoadLocal(out SaveSlotDTO dto) => LocalCache.TryRead(CurrentSlotId, out dto);
+    public static bool TryLoadLocal(out SaveSlotDTO dto) =>
+        LocalCache.TryRead(CurrentSlotId, out dto);
 
-    private static SaveSlotDTO NewDefault(string playerName) => new SaveSlotDTO
+    // ---------- helpers ----------
+
+    private static void TouchTimestamp(SaveSlotDTO dto)
     {
-        slotName = string.IsNullOrWhiteSpace(playerName) ? "Player" : playerName,
-        playerName = string.IsNullOrWhiteSpace(playerName) ? "Player" : playerName,
-        chapterIndex = 1,
+        dto.lastSavedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+    }
+
+    private static SaveSlotDTO Resolve(SaveSlotDTO local, SaveSlotDTO remote)
+    {
+        if (local == null && remote == null) return null;
+        if (local == null) return remote;
+        if (remote == null) return local;
+        return (local.lastSavedAtUnix >= remote.lastSavedAtUnix) ? local : remote;
+    }
+
+    private static SaveSlotDTO NewDefault(string slotId, string playerName) => new SaveSlotDTO
+    {
+        // slotName phải là id của slot, không phải tên người chơi
+        slotName = string.IsNullOrWhiteSpace(slotId) ? "slotA" : slotId,
+        playerName = string.IsNullOrWhiteSpace(playerName) ? "Player" : playerName.Trim(),
+
+        // ⚠ dùng model mới
+        currentMap = 1,
+        essencesCollected = 0,
+        playTimeSeconds = 0f,
+
         player = new PlayerStateDTO
         {
             hp = 100,
@@ -81,7 +101,23 @@ public static class CloudSaveManager
             flask = 3,
             pos = new Vector3DTO(Vector3.zero),
             rotY = 0
-        }
+        },
+
+        inventory = new InventorySnapshot
+        {
+            holy_water = 0,
+            elixir = 0,
+            power_pill = 0
+        },
+
+        skillsUnlocked = new System.Collections.Generic.List<string>(),
+        bossesDefeated = new System.Collections.Generic.List<string>(),
+        deadEnemies = new System.Collections.Generic.List<string>(),
+        worldFlags = new System.Collections.Generic.Dictionary<string, bool>(),
+        skillCooldowns = new System.Collections.Generic.Dictionary<string, float>(),
+
+        lastSavedAtUnix = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        version = 1
     };
 
 #if FIREBASE_ENABLED
@@ -91,11 +127,10 @@ public static class CloudSaveManager
         var uid = FirebaseRuntime.Auth.CurrentUser.UserId;
 
         var doc = db.Collection("users").Document(uid)
-                     .Collection("saveSlots").Document(slotId);
+                    .Collection("saveSlots").Document(slotId);
 
         var snap = await doc.GetSnapshotAsync();
         if (!snap.Exists) return null;
-
         return snap.ConvertTo<SaveSlotDTO>();
     }
 
@@ -108,6 +143,19 @@ public static class CloudSaveManager
                     .Collection("saveSlots").Document(slotId);
 
         await doc.SetAsync(data, SetOptions.MergeAll);
+    }
+
+    private static async Task SafeFirebaseSave(string slotId, SaveSlotDTO data)
+    {
+        try
+        {
+            await FirebaseRuntime.EnsureInitializedAsync();
+            await FirebaseSave(slotId, data);
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning($"[CloudSaveManager] Firebase save failed, kept local. {ex.Message}");
+        }
     }
 #endif
 }

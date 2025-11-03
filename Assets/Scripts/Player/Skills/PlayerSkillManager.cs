@@ -3,13 +3,13 @@ using UnityEngine;
 using System.Collections;
 
 // NOTE: Không cần using Firebase gì cả. Chỉ SaveRuntime + CloudSaveManager (local/cloud-agnostic).
+// Để mở khóa skill, luôn dùng UnlockSkillById("heal") với id đã có trong skillCatalog Inspector.
 
 public class PlayerSkillManager : MonoBehaviour
 {
     private Dictionary<int, ISkill> unlockedSkills = new();
     private PlayerMovementContext context;
 
-    // ==================== PATCH: CATALOG & SAVE ====================
     [System.Serializable]
     public class SkillEntry
     {
@@ -35,7 +35,7 @@ public class PlayerSkillManager : MonoBehaviour
     {
         context = GetComponent<PlayerMovementContext>();
 
-        // PATCH: build idToSkill map
+        // Build idToSkill map
         idToSkill.Clear();
         foreach (var e in skillCatalog)
         {
@@ -45,16 +45,16 @@ public class PlayerSkillManager : MonoBehaviour
                 idToSkill.Add(e.id, skill);
         }
 
-        // PATCH: đảm bảo SaveRuntime tồn tại
+        // Đảm bảo SaveRuntime tồn tại (MODEL MỚI)
         if (SaveRuntime.Current == null)
-            SaveRuntime.Current = new SaveSlotDTO { chapterIndex = 1, player = new PlayerStateDTO() };
-        if (SaveRuntime.Current.learnedSkills == null)
-            SaveRuntime.Current.learnedSkills = new List<string>();
+            SaveRuntime.Current = new SaveSlotDTO { currentMap = 1, player = new PlayerStateDTO() };
+        if (SaveRuntime.Current.skillsUnlocked == null)
+            SaveRuntime.Current.skillsUnlocked = new List<string>();
 
-        // PATCH: khôi phục skill đã mở từ save & auto-assign vào 1..3 theo thứ tự đã lưu
+        // Khôi phục skill đã mở từ save & auto-assign vào 1..3 theo thứ tự đã lưu
         unlockedSkills.Clear();
         int bindIndex = 0;
-        foreach (var skillId in SaveRuntime.Current.learnedSkills)
+        foreach (var skillId in SaveRuntime.Current.skillsUnlocked)
         {
             if (!idToSkill.TryGetValue(skillId, out var skill)) continue;
             // gán lần lượt vào 1..3 nếu còn trống
@@ -77,39 +77,9 @@ public class PlayerSkillManager : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Alpha3) && unlockedSkills.ContainsKey(3))
             unlockedSkills[3].Use(context);
-
-        // Mở rộng thêm nếu cần...
     }
 
-    // ==================== CŨ (giữ nguyên API) + PATCH lưu ====================
-    public void UnlockSkill(int key, ISkill skill)
-    {
-        if (skill == null) return;
-
-        if (!unlockedSkills.ContainsKey(key))
-        {
-            unlockedSkills.Add(key, skill);
-            Debug.Log($"🔓 Đã mở khóa kỹ năng [{skill.GetName()}] tại phím [{key}]");
-
-            // PATCH: cố gắng tìm skillId từ catalog để lưu
-            string skillId = FindIdByInstance(skill);
-            if (!string.IsNullOrEmpty(skillId))
-            {
-                EnsureSaveLists();
-                if (!SaveRuntime.Current.learnedSkills.Contains(skillId))
-                    SaveRuntime.Current.learnedSkills.Add(skillId);
-                DebouncedSave();
-            }
-            else
-            {
-                Debug.LogWarning($"[PlayerSkillManager] Không tìm thấy skillId trong catalog cho skill {skill.GetName()}. Hãy thêm vào skillCatalog.");
-            }
-        }
-    }
-
-    // ==================== PATCH: API theo skillId (ổn định cho save) ====================
-
-    /// <summary>Mở khóa skill theo id (sẽ tự bind vào phím 1..3 còn trống).</summary>
+    // Luôn unlock skill bằng id, không tạo instance mới
     public void UnlockSkillById(string skillId)
     {
         if (string.IsNullOrWhiteSpace(skillId)) return;
@@ -120,10 +90,21 @@ public class PlayerSkillManager : MonoBehaviour
             return;
         }
 
-        // nếu đã có trong save thì không thêm nữa
+        // Nếu player đang chết/đã chết thì không mở khóa
+        var player = GameObject.FindWithTag("Player");
+        if (player != null)
+        {
+            var ps = player.GetComponent<PlayerStats>();
+            if (ps != null && ps.currentHealth <= 0f)
+            {
+                Debug.Log("[PlayerSkillManager] Player is dead - skipping unlock.");
+                return;
+            }
+        }
+
         EnsureSaveLists();
-        if (!SaveRuntime.Current.learnedSkills.Contains(skillId))
-            SaveRuntime.Current.learnedSkills.Add(skillId);
+        if (!SaveRuntime.Current.skillsUnlocked.Contains(skillId))
+            SaveRuntime.Current.skillsUnlocked.Add(skillId);
 
         // tìm phím trống (1..3)
         int freeKey = -1;
@@ -167,20 +148,20 @@ public class PlayerSkillManager : MonoBehaviour
         Debug.Log($"[PlayerSkillManager] Gán '{skillId}' vào phím [{key}]");
 
         EnsureSaveLists();
-        if (!SaveRuntime.Current.learnedSkills.Contains(skillId))
-            SaveRuntime.Current.learnedSkills.Add(skillId);
+        if (!SaveRuntime.Current.skillsUnlocked.Contains(skillId))
+            SaveRuntime.Current.skillsUnlocked.Add(skillId);
 
         DebouncedSave();
     }
 
-    // ==================== PATCH: helpers ====================
+    // ==================== Helpers ====================
 
     private void EnsureSaveLists()
     {
         if (SaveRuntime.Current == null)
-            SaveRuntime.Current = new SaveSlotDTO { chapterIndex = 1, player = new PlayerStateDTO() };
-        if (SaveRuntime.Current.learnedSkills == null)
-            SaveRuntime.Current.learnedSkills = new List<string>();
+            SaveRuntime.Current = new SaveSlotDTO { currentMap = 1, player = new PlayerStateDTO() };
+        if (SaveRuntime.Current.skillsUnlocked == null)
+            SaveRuntime.Current.skillsUnlocked = new List<string>();
     }
 
     private string FindIdByInstance(ISkill skill)
@@ -189,8 +170,6 @@ public class PlayerSkillManager : MonoBehaviour
         {
             if (e == null || string.IsNullOrWhiteSpace(e.id) || e.behaviour == null) continue;
             if (ReferenceEquals(e.behaviour, skill)) return e.id;
-            // trường hợp behaviour là wrapper, có thể so sánh bằng GetName nếu bạn muốn:
-            // if ((e.behaviour as ISkill)?.GetName() == skill.GetName()) return e.id;
         }
         return null;
     }

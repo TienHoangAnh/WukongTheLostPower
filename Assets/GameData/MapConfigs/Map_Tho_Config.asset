@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6af0e73a0d9b5ac41b390f2221459a9a, type: 3}
+  m_Name: Map_Tho_Config
+  m_EditorClassIdentifier: 
+  element: 0
+  enemyPrefab: {fileID: 0}
+  enemyCount: 18
+  useUnityTerrain: 1
+  size: {x: 200, y: 200}
+  heightScale: 12
+  seed: 505
+  propPrefabs: []
+  propCount: 85
+  enableHazard: 0
+  hazardPrefab: {fileID: 0}
+  hazardCount: 5
+  ambientColor: {r: 0.2, g: 0.2, b: 0.2, a: 1}
+  sunIntensity: 1.1
+  sunColor: {r: 1, g: 1, b: 1, a: 1}
+  skybox: {fileID: 0}
+  bgm: {fileID: 0}
+  ambientLoop: {fileID: 0}
+  playerSpawn: {fileID: 0}
+  enemySpawnHints: []

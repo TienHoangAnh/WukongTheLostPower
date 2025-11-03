@@ -38,9 +38,17 @@ public class PlayerCombat : MonoBehaviour
     private PlayerBehaviorTracker behaviorTracker;
     private bool rangedOnCooldown;
 
+    public ComboData comboData; // Gán asset ComboData trong Inspector
+    private float[] comboCooldowns;
+    private Animator animator;
+    private PlayerStats stats;
+
     void Start()
     {
         behaviorTracker = FindFirstObjectByType<PlayerBehaviorTracker>();
+        animator = GetComponent<Animator>();
+        stats = GetComponent<PlayerStats>();
+        comboCooldowns = new float[comboData.comboSteps.Count];
     }
 
     void Update()
@@ -50,6 +58,16 @@ public class PlayerCombat : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.J))
             TryFireRanged();
+
+        for (int i = 0; i < comboData.comboSteps.Count; i++)
+        {
+            if (Input.GetMouseButtonDown(i)) // Mouse0, Mouse1, Mouse2 cho 3 chiêu
+            {
+                TryUseCombo(i);
+            }
+        }
+        // Hồi stamina mỗi frame (có thể chỉnh lại cho hợp lý)
+        stats.RecoverStamina(Time.deltaTime * 2f);
     }
 
     void TryFireRanged()
@@ -179,6 +197,50 @@ public class PlayerCombat : MonoBehaviour
         rangedOnCooldown = true;
         yield return new WaitForSeconds(rangedCooldown);
         rangedOnCooldown = false;
+    }
+
+    void TryUseCombo(int index)
+    {
+        if (index < 0 || index >= comboData.comboSteps.Count) return;
+        AttackStep step = comboData.comboSteps[index];
+        if (Time.time < comboCooldowns[index])
+        {
+            Debug.Log($"Chiêu {step.skillName} đang hồi chiêu!");
+            return;
+        }
+        if (!stats.UseStamina(step.staminaCost))
+        {
+            Debug.Log($"Không đủ stamina cho chiêu {step.skillName}!");
+            return;
+        }
+        float damage = stats.baseDamage * (1f + step.bonusPercent);
+        // Trigger animation
+        if (animator != null && !string.IsNullOrEmpty(step.animationName))
+            animator.SetTrigger(step.animationName);
+        // Gây damage lên enemy (ví dụ: lấy enemy gần nhất)
+        EnemyStats enemy = FindNearestEnemy();
+        if (enemy != null)
+        {
+            enemy.TakeDamage(damage);
+            Debug.Log($"Player dùng {step.skillName} gây {damage} sát thương lên {enemy.gameObject.name}");
+        }
+        comboCooldowns[index] = Time.time + step.cooldown;
+    }
+
+    EnemyStats FindNearestEnemy()
+    {
+        EnemyStats nearest = null;
+        float minDist = float.MaxValue;
+        foreach (var enemyObj in GameObject.FindGameObjectsWithTag("Enemy"))
+        {
+            float dist = Vector3.Distance(transform.position, enemyObj.transform.position);
+            if (dist < minDist)
+            {
+                minDist = dist;
+                nearest = enemyObj.GetComponent<EnemyStats>();
+            }
+        }
+        return nearest;
     }
 
     void OnDrawGizmosSelected()

@@ -33,14 +33,13 @@ public class EnemyAttackState : IEnemyState
             return;
         }
 
-        // Trong tầm đánh: xoay mặt & đánh theo cooldown
         context.FaceTargetFlat();
 
         if (context.CanAttackNow())
         {
             int attackIndex = (Random.value <= context.chanceAttack2) ? 2 : 1;
             context.TriggerAttackAnimationAndRegisterIndex(attackIndex);
-            // Damage sẽ áp dụng bằng Animation Event PerformAttackHit() ở đúng frame
+            context.PerformAttackHit();
         }
     }
 

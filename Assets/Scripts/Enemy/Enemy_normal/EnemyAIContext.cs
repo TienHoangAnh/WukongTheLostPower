@@ -5,6 +5,9 @@ using UnityEngine.SceneManagement;
 [DisallowMultipleComponent]
 public class EnemyAIContext : MonoBehaviour
 {
+    // Thêm field để cache:
+    private EnemyStats _stats;
+
     [Header("References")]
     public Transform player;
     public NavMeshAgent agent;
@@ -18,38 +21,35 @@ public class EnemyAIContext : MonoBehaviour
     public float chaseSpeed = 3.5f;
     public float attackCooldown = 1.5f;
     [Tooltip("Damage for attack type 1")]
-    public int attackDamage1 = 10;
+    public int attackDamage1 = 2;
     [Tooltip("Damage for attack type 2")]
-    public int attackDamage2 = 18;
+    public int attackDamage2 = 5;
     [Range(0f, 1f)] public float chanceAttack2 = 0.25f;
 
     [Tooltip("Layer của Player để OverlapSphere gây damage chính xác")]
-    public LayerMask playerLayer = 1 << 8; // sửa trong Inspector
+    public LayerMask playerLayer = 1 << 8;
 
     [Header("Attack Hitbox")]
     [Tooltip("Tâm hitbox khi Animation Event xảy ra (nếu null dùng vị trí enemy).")]
     public Transform hitOrigin;
     [Tooltip("Bán kính hitbox khi tung đòn.")]
-    public float hitRadius = 0.9f;
+    public float hitRadius = 2f;
 
     [Header("Debug")]
     public bool drawGizmos = true;
 
-    // Animator hashes
     static readonly int HashIsChasing = Animator.StringToHash("IsChasing");
     static readonly int HashIsDead = Animator.StringToHash("IsDead");
     static readonly int HashAttack = Animator.StringToHash("Attack");
     static readonly int HashAttackIndex = Animator.StringToHash("AttackIndex");
 
-    // runtime
     private IEnemyState currentState;
     private float attackTimer = 0f;
     private int lastAttackIndex = 1;
     private bool isDead = false;
 
-    // rebind control
     private float _nextRebindAt = 0f;
-    private const float REBIND_INTERVAL = 0.5f; // rebind mỗi 0.5s khi mất player
+    private const float REBIND_INTERVAL = 0.5f;
 
     void OnValidate()
     {
@@ -63,7 +63,6 @@ public class EnemyAIContext : MonoBehaviour
 
     void OnEnable()
     {
-        // Nghe sự kiện scene load để rebind khi qua chapter
         SceneManager.sceneLoaded += OnSceneLoadedTryRebind;
         TryBindPlayer(true);
     }
@@ -75,7 +74,6 @@ public class EnemyAIContext : MonoBehaviour
 
     private void OnSceneLoadedTryRebind(Scene s, LoadSceneMode m)
     {
-        // Scene mới → thử bind lại ngay và cho phép rebind liên tục 1 lát
         _nextRebindAt = 0f;
         TryBindPlayer(true);
     }
@@ -89,7 +87,11 @@ public class EnemyAIContext : MonoBehaviour
             agent.stoppingDistance = Mathf.Max(0f, attackDistance - 0.1f);
         }
 
-        // Nếu Start mà vẫn chưa có → state vẫn chạy nhưng HasValidTarget() sẽ false
+        if (_stats != null)
+        {
+            attackCooldown = _stats.GetAttackCooldown();  // = 1.0s theo yêu cầu
+        }
+
         SwitchState(new EnemyIdleState());
     }
 
@@ -97,7 +99,6 @@ public class EnemyAIContext : MonoBehaviour
     {
         if (isDead) return;
 
-        // Nếu mất player (spawn trễ, bị replace…), thử rebind định kỳ
         if (player == null && Time.time >= _nextRebindAt)
         {
             TryBindPlayer(false);
@@ -107,11 +108,6 @@ public class EnemyAIContext : MonoBehaviour
         currentState?.UpdateState(this);
     }
 
-    /// <summary>
-    /// Cơ chế bind chắc chắn:
-    /// 1) Ưu tiên PlayerAnchor.Current (đặt trên prefab Player).
-    /// 2) Fallback FindWithTag("Player").
-    /// </summary>
     private void TryBindPlayer(bool log)
     {
         if (player != null) return;
@@ -155,7 +151,6 @@ public class EnemyAIContext : MonoBehaviour
     public Transform GetPlayerTransform() => player;
     public bool HasValidTarget() => player != null;
 
-    // === Animation Event ===
     public void PerformAttackHit()
     {
         if (isDead) return;
@@ -164,7 +159,10 @@ public class EnemyAIContext : MonoBehaviour
                          + transform.forward * (attackDistance * 0.5f);
 
         Collider[] hits = Physics.OverlapSphere(center, hitRadius, playerLayer, QueryTriggerInteraction.Ignore);
-        int dmg = (lastAttackIndex == 2) ? attackDamage2 : attackDamage1;
+
+        // >>> SỬA: damage lấy từ EnemyStats (coef theo AttackIndex để bạn còn đổi anim)
+        float coef = (lastAttackIndex == 2) ? 1.2f : 1.0f;  // tuỳ thích 0.8/1.2
+        int dmg = Mathf.RoundToInt(_stats != null ? _stats.GetAttackDamage(coef) : (lastAttackIndex == 2 ? 5 : 2));
 
         bool applied = false;
         foreach (var col in hits)
@@ -196,7 +194,6 @@ public class EnemyAIContext : MonoBehaviour
         }
     }
 
-    // EnemyHealth gọi khi máu về 0
     public void OnDeathFromHealth()
     {
         if (isDead) return;
@@ -222,7 +219,6 @@ public class EnemyAIContext : MonoBehaviour
         foreach (var c in cols) if (c != null) c.enabled = false;
     }
 
-    // state gọi để phát attack + ghi index
     public void TriggerAttackAnimationAndRegisterIndex(int attackIndex)
     {
         FaceTargetFlat();
@@ -238,11 +234,9 @@ public class EnemyAIContext : MonoBehaviour
         Debug.Log($"[EnemyAI] Triggered Attack index={attackIndex}");
     }
 
-    // Cooldown dùng chung
     public bool CanAttackNow() => Time.time >= attackTimer;
     public void MarkAttackStarted() => attackTimer = Time.time + attackCooldown;
 
-    // quay mặt theo mặt phẳng ngang
     public void FaceTargetFlat(float turnSpeed = 12f)
     {
         var t = GetPlayerTransform();
@@ -266,7 +260,6 @@ public class EnemyAIContext : MonoBehaviour
     }
 }
 
-// Relay nếu Animator ở child
 public class AnimationEventRelay : MonoBehaviour
 {
     public EnemyAIContext owner;

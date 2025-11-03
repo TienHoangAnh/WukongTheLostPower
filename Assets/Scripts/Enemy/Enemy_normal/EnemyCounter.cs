@@ -2,11 +2,11 @@
 
 public class EnemyCounter : MonoBehaviour
 {
-    [Header("Tham chiếu")]
+    [Header("Reference")]
     public PlayerSkillManager skillManager;
-    public GameObject chapterTransitionTrigger; // Kéo vùng trigger vào đây
+    public GameObject chapterTransitionTrigger;
 
-    [Header("Cài đặt")]
+    [Header("Setting")]
     public float checkInterval = 1.5f;
 
     private float timer = 0f;
@@ -19,7 +19,6 @@ public class EnemyCounter : MonoBehaviour
             chapterTransitionTrigger.SetActive(false);
         }
     }
-
 
     void Update()
     {
@@ -35,11 +34,9 @@ public class EnemyCounter : MonoBehaviour
 
             if (remaining == 0)
             {
-                // Mở khóa kỹ năng Heal
-                skillManager?.UnlockSkill(1, new HealSkill());
+                skillManager?.UnlockSkillById("heal");
                 Debug.Log("🔓 Kỹ năng Heal đã được mở khóa!");
 
-                // Kích hoạt vùng chuyển cảnh
                 if (chapterTransitionTrigger != null)
                 {
                     chapterTransitionTrigger.SetActive(true);

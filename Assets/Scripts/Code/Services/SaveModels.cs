@@ -1,26 +1,26 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 #if FIREBASE_ENABLED
 using Firebase.Firestore;
 #endif
 
-// --------- Vector3 DTO (Firestore-friendly) ---------
+// ========== Vector3 DTO ==========
 #if FIREBASE_ENABLED
 [FirestoreData]
 #endif
+[Serializable] // để Newtonsoft hoặc JsonUtility đều chấp nhận
 public class Vector3DTO
 {
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
     public float x { get; set; }
-
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
     public float y { get; set; }
-
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
@@ -31,75 +31,87 @@ public class Vector3DTO
     public Vector3 ToVector3() => new Vector3(x, y, z);
 }
 
-// --------- Player State ---------
+// ========== Player State ==========
 #if FIREBASE_ENABLED
 [FirestoreData]
 #endif
+[Serializable]
 public class PlayerStateDTO
 {
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
-    public float hp { get; set; }
-
+    public int hp { get; set; }          // int cho gameplay
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
-    public float stamina { get; set; }
-
+    public int stamina { get; set; }
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
     public float rotY { get; set; }
-
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
     public Vector3DTO pos { get; set; } = new Vector3DTO();
-
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
     public int flask { get; set; }
 }
 
-// --------- Item Stack (nếu cần) ---------
+// ========== Inventory ==========
 #if FIREBASE_ENABLED
 [FirestoreData]
 #endif
-public class ItemStackDTO
+[Serializable]
+public class InventorySnapshot
 {
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
-    public string itemId { get; set; }
-
+    public int holy_water { get; set; }
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
-    public int qty { get; set; }
+    public int elixir { get; set; }
+#if FIREBASE_ENABLED
+    [FirestoreProperty]
+#endif
+    public int power_pill { get; set; }
 }
 
-// --------- Save Slot ---------
+// ========== Save Slot ==========
 #if FIREBASE_ENABLED
 [FirestoreData]
 #endif
+[Serializable]
 public class SaveSlotDTO
 {
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
     public string slotName { get; set; }
-
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
     public string playerName { get; set; }
 
+    // Thống nhất tên "currentMap" để map trực tiếp gameplay
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
-    public int chapterIndex { get; set; }
+    public int currentMap { get; set; } = 1;
+
+#if FIREBASE_ENABLED
+    [FirestoreProperty]
+#endif
+    public int essencesCollected { get; set; } = 0;
+
+#if FIREBASE_ENABLED
+    [FirestoreProperty]
+#endif
+    public float playTimeSeconds { get; set; } = 0f;
 
 #if FIREBASE_ENABLED
     [FirestoreProperty]
@@ -109,7 +121,13 @@ public class SaveSlotDTO
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif
-    public List<string> learnedSkills { get; set; } = new();
+    public InventorySnapshot inventory { get; set; } = new InventorySnapshot();
+
+    // Thống nhất "skillsUnlocked"
+#if FIREBASE_ENABLED
+    [FirestoreProperty]
+#endif
+    public List<string> skillsUnlocked { get; set; } = new();
 
 #if FIREBASE_ENABLED
     [FirestoreProperty]

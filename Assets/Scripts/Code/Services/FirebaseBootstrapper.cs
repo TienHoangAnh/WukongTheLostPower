@@ -7,7 +7,6 @@ public class FirebaseBootstrapper : MonoBehaviour
     {
         DontDestroyOnLoad(this);
 
-        // Giảm ồn log từ Firebase (ẩn Info/Debug)
         Firebase.FirebaseApp.LogLevel = Firebase.LogLevel.Warning;
 
         try
