@@ -6,22 +6,24 @@ using UnityEngine;
 public class PlayerCombat : MonoBehaviour
 {
     [Header("Melee Settings")]
-    public float attackRange = 5f;
-    public float attackDamage = 10f;
+    public float attackRange = 2f;
+    public float attackDamage = 20f;
     public LayerMask enemyLayer;
 
     [Header("Ranged Attack Settings")]
-    public GameObject projectilePrefab;          // Prefab phân thân (có RangedClone)
-    public float spawnRadius = 1.5f;
+    public GameObject projectilePrefab;
+    public float spawnRadius = 3f;
     public int numberOfProjectiles = 3;
-    public float launchDelay = 1.0f;             // thời gian “trồi lên”
-    public float attackDistance = 15f;           // phạm vi tìm enemy
-    public float rangedDamage = 14f;             // damage khi va chạm
-    public float projectileSpeed = 12f;          // tốc độ lao
-    [Range(0f, 720f)] public float turnRate = 360f; // tốc độ quay đầu homing (deg/s)
-    public float impactRadius = 1.0f;            // bán kính nổ khi chạm
-    public float knockbackForce = 8f;            // lực hất
-    public float rangedCooldown = 2.0f;          // CD phím J
+    public float launchDelay = 0.5f;
+    public float attackDistance = 15f;
+    public float rangedDamage = 20f;
+    public float projectileSpeed = 6f;
+    public float rangedStaminaCost = 15f;
+
+    [Range(0f, 720f)] public float turnRate = 360f;
+    public float impactRadius = 1.0f;
+    public float knockbackForce = 8f;
+    public float rangedCooldown = 1.5f;
     public AnimationCurve riseCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
     [Header("FX (Optional)")]
@@ -31,14 +33,14 @@ public class PlayerCombat : MonoBehaviour
     public AudioClip impactSFX;
 
     [Header("Layers/Tags")]
-    public LayerMask obstacleMask;               // nếu muốn kiểm LOS
+    public LayerMask obstacleMask;
     public string projectileLayerName = "PlayerProjectile";
-    public string enemyTag = "Enemy";            // nếu muốn lọc tag
+    public string enemyTag = "Enemy";
 
     private PlayerBehaviorTracker behaviorTracker;
     private bool rangedOnCooldown;
 
-    public ComboData comboData; // Gán asset ComboData trong Inspector
+    public ComboData comboData;
     private float[] comboCooldowns;
     private Animator animator;
     private PlayerStats stats;
@@ -53,20 +55,19 @@ public class PlayerCombat : MonoBehaviour
 
     void Update()
     {
+        // Left mouse = Melee
         if (Input.GetMouseButtonDown(0))
             AttackMelee();
 
+        // Ranged = J
         if (Input.GetKeyDown(KeyCode.J))
             TryFireRanged();
 
-        for (int i = 0; i < comboData.comboSteps.Count; i++)
-        {
-            if (Input.GetMouseButtonDown(i)) // Mouse0, Mouse1, Mouse2 cho 3 chiêu
-            {
-                TryUseCombo(i);
-            }
-        }
-        // Hồi stamina mỗi frame (có thể chỉnh lại cho hợp lý)
+        // Combo keys (Q/E/R)
+        if (Input.GetKeyDown(KeyCode.Q)) TryUseCombo(0);
+        if (Input.GetKeyDown(KeyCode.E)) TryUseCombo(1);
+        if (Input.GetKeyDown(KeyCode.R)) TryUseCombo(2);
+
         stats.RecoverStamina(Time.deltaTime * 2f);
     }
 
@@ -87,28 +88,37 @@ public class PlayerCombat : MonoBehaviour
             if (target != null)
             {
                 target.TakeDamage(attackDamage);
-                Debug.Log($"🗡 Cận chiến gây {attackDamage} sát thương lên {col.name}");
+                Debug.Log($"[Combat] Melee attack dealt {attackDamage} damage to {col.name}");
                 hitEnemy = true;
             }
         }
 
-        if (hitEnemy) behaviorTracker?.RecordMeleeAttack();
-        else Debug.Log("🛡 Cận chiến không trúng kẻ địch nào");
+        if (hitEnemy)
+            behaviorTracker?.RecordMeleeAttack();
+        else
+            Debug.Log("[Combat] Melee attack missed all enemies.");
     }
 
     IEnumerator FireRangedAttack()
     {
         if (projectilePrefab == null)
         {
-            Debug.LogError("❌ projectilePrefab chưa được gán trong Inspector!");
+            Debug.LogError("[Combat] Missing projectilePrefab in Inspector!");
             yield break;
         }
 
-        // 1) Tìm enemy trong phạm vi, sắp xếp theo khoảng cách (gần nhất trước)
+        // 1) Find enemies in range
         Collider[] colHits = Physics.OverlapSphere(transform.position, attackDistance, enemyLayer);
         if (colHits.Length == 0)
         {
-            Debug.Log("❌ Không có enemy trong phạm vi tầm xa");
+            Debug.Log("[Combat] No enemies in ranged attack distance.");
+            yield break;
+        }
+
+        // Check stamina
+        if (!stats || !stats.UseStamina(rangedStaminaCost))
+        {
+            Debug.Log($"[Combat] Not enough stamina for ranged attack. Required {rangedStaminaCost}, current {stats?.currentStamina:0.0}/{stats?.maxStamina:0.0}");
             yield break;
         }
 
@@ -118,7 +128,7 @@ public class PlayerCombat : MonoBehaviour
             .OrderBy(t => (t.position - transform.position).sqrMagnitude)
             .ToList();
 
-        // 2) Spawn phân thân xung quanh người chơi + pha trồi lên
+        // 2) Spawn projectiles and make them rise up
         Transform player = transform;
         var spawned = new List<GameObject>(numberOfProjectiles);
         var startPos = new Vector3[numberOfProjectiles];
@@ -138,11 +148,9 @@ public class PlayerCombat : MonoBehaviour
                 if (layer >= 0) go.layer = layer;
             }
 
-            // đảm bảo có RangedClone
             var clone = go.GetComponent<RangedClone>();
             if (clone == null) clone = go.AddComponent<RangedClone>();
 
-            // cấu hình cơ bản cho clone (chưa set target lúc này)
             clone.Init(new RangedClone.Config
             {
                 damage = rangedDamage,
@@ -163,7 +171,6 @@ public class PlayerCombat : MonoBehaviour
             if (spawnSFX) AudioSource.PlayClipAtPoint(spawnSFX, startPos[i], 0.9f);
         }
 
-        // Pha trồi lên (clone CHỜ target, KHÔNG tự hủy)
         float t = 0f;
         while (t < launchDelay)
         {
@@ -171,15 +178,13 @@ public class PlayerCombat : MonoBehaviour
             float eased = riseCurve != null ? riseCurve.Evaluate(k) : k;
 
             for (int i = 0; i < spawned.Count; i++)
-            {
-                if (spawned[i])
-                    spawned[i].transform.position = Vector3.Lerp(startPos[i], endPos[i], eased);
-            }
+                if (spawned[i]) spawned[i].transform.position = Vector3.Lerp(startPos[i], endPos[i], eased);
+
             t += Time.deltaTime;
             yield return null;
         }
 
-        // 3) Gán mục tiêu cho từng phân thân (nếu enemy ít, sẽ lặp lại)
+        // 3) Assign targets
         for (int i = 0; i < spawned.Count; i++)
         {
             if (!spawned[i]) continue;
@@ -190,7 +195,7 @@ public class PlayerCombat : MonoBehaviour
             clone.SetTarget(target, transform);
         }
 
-        Debug.Log("🎯 Đòn tầm xa đã được kích hoạt");
+        Debug.Log($"[Combat] Ranged attack fired | -{rangedStaminaCost} stamina | Remaining {stats.currentStamina:0.0}/{stats.maxStamina:0.0} | Cooldown = {rangedCooldown:0.00}s");
         behaviorTracker?.RecordRangedAttack();
 
         // 4) Cooldown
@@ -203,27 +208,33 @@ public class PlayerCombat : MonoBehaviour
     {
         if (index < 0 || index >= comboData.comboSteps.Count) return;
         AttackStep step = comboData.comboSteps[index];
+
         if (Time.time < comboCooldowns[index])
         {
-            Debug.Log($"Chiêu {step.skillName} đang hồi chiêu!");
+            Debug.Log($"[Combat] Skill {step.skillName} is still on cooldown!");
             return;
         }
+
         if (!stats.UseStamina(step.staminaCost))
         {
-            Debug.Log($"Không đủ stamina cho chiêu {step.skillName}!");
+            Debug.Log($"[Combat] Not enough stamina for {step.skillName}!");
             return;
         }
+
         float damage = stats.baseDamage * (1f + step.bonusPercent);
+
         // Trigger animation
         if (animator != null && !string.IsNullOrEmpty(step.animationName))
             animator.SetTrigger(step.animationName);
-        // Gây damage lên enemy (ví dụ: lấy enemy gần nhất)
+
+        // Deal damage to nearest enemy
         EnemyStats enemy = FindNearestEnemy();
         if (enemy != null)
         {
             enemy.TakeDamage(damage);
-            Debug.Log($"Player dùng {step.skillName} gây {damage} sát thương lên {enemy.gameObject.name}");
+            Debug.Log($"[Combat] Used {step.skillName} and dealt {damage} damage to {enemy.gameObject.name}");
         }
+
         comboCooldowns[index] = Time.time + step.cooldown;
     }
 

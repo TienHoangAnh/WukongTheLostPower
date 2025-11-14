@@ -23,4 +23,6 @@ public class KickState : IMovementState
     }
 
     public void UpdateState(PlayerMovementContext context) { }
+    public void ExitState(PlayerMovementContext ctx) { /* reset flag/anim nếu cần */ }
+
 }

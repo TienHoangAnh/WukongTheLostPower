@@ -33,4 +33,5 @@ public class IdleState : IMovementState
         context.velocity.y += context.gravity * Time.deltaTime;
         context.characterController.Move(context.velocity * Time.deltaTime);
     }
+    public void ExitState(PlayerMovementContext ctx) { /* reset flag/anim nếu cần */ }
 }

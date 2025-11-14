@@ -1,13 +1,16 @@
 ﻿using UnityEngine;
+using System;
 
 [RequireComponent(typeof(Collider))]
 [RequireComponent(typeof(CollectibleId))]
 public class CollectiblePickup : MonoBehaviour
 {
+    public static event Action<string, string> OnPicked; // (displayName, id)
+
     public string displayName = "Item";
     public bool destroyOnPickup = true;
 
-    CollectibleId _id;
+    private CollectibleId _id;
 
     void Awake()
     {
@@ -16,27 +19,26 @@ public class CollectiblePickup : MonoBehaviour
         col.isTrigger = true;
     }
 
-    void Start()
-    {
-        if (GameSaveController.I != null && GameSaveController.I.IsCollected(_id.Id))
-        {
-            Debug.Log($"[Pickup] Already collected -> {displayName} ({_id.Id}). Hide");
-            gameObject.SetActive(false);
-        }
-    }
-
     async void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("Player")) return;
-        if (GameSaveController.I == null) { Debug.LogWarning("[Pickup] Missing GameSaveController"); return; }
 
         Debug.Log($"[Pickup] Picked -> {displayName} ({_id.Id})");
 
-        GameSaveController.I.MarkCollected(_id.Id);           // JSON local
-        if (FirebasePlayerService.I != null)                  // Cloud (optional)
+        // lưu vào save data (tăng số lượng)
+        GameSaveController.I?.MarkCollected(_id.Id, 1);
+
+        // nếu có Firebase thì đồng bộ lên cloud
+        if (FirebasePlayerService.I != null)
             await FirebasePlayerService.I.AddCollectedAsync(_id.Id);
 
-        if (destroyOnPickup) Destroy(gameObject);
-        else gameObject.SetActive(false);
+        // phát sự kiện cho HUD / hệ thống UI
+        OnPicked?.Invoke(displayName, _id.Id);
+
+        // xử lý sau khi nhặt
+        if (destroyOnPickup)
+            Destroy(gameObject);
+        else
+            gameObject.SetActive(false);
     }
 }

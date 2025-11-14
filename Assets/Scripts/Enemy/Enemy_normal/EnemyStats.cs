@@ -121,23 +121,37 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
 
     private void DropItems()
     {
+        // Không có item để rơi
         if (dropItems == null || dropItems.Length == 0) return;
 
-        foreach (var item in dropItems)
+        // Lấy item đầu tiên (hoặc chỉ 1 item duy nhất bạn gán)
+        var prefab = dropItems[0];
+        if (prefab == null) return;
+
+        // Tạo vị trí rơi hơi cao 1 chút để nhìn rõ
+        Vector3 dropPos = transform.position + Vector3.up * 1f;
+        var drop = Instantiate(prefab, dropPos, Quaternion.identity);
+
+        // ✅ Bật GameObject nếu prefab đang tắt
+        drop.SetActive(true);
+
+        // ✅ Đảm bảo collider bật để có thể nhặt
+        var col = drop.GetComponent<Collider>();
+        if (col != null) col.enabled = true;
+
+        // ✅ Bật renderer để hiển thị
+        var rend = drop.GetComponent<Renderer>();
+        if (rend != null) rend.enabled = true;
+
+        // ✅ Nếu có Rigidbody, cho rơi tự nhiên
+        var rb = drop.GetComponent<Rigidbody>();
+        if (rb != null)
         {
-            if (item == null) continue;
-
-            Vector3 offset = new Vector3(Random.Range(-0.5f, 0.5f), 1.0f, Random.Range(-0.5f, 0.5f));
-            var drop = Instantiate(item, transform.position + offset, Quaternion.identity);
-
-            // ép hiển thị
-            drop.SetActive(true);
-            drop.transform.localScale = Vector3.one;                 // ✅ chống scale 0
-            var r = drop.GetComponentInChildren<Renderer>(true);
-            if (r != null) r.enabled = true;
-
-            var rb = drop.GetComponent<Rigidbody>();
-            if (rb != null) { rb.isKinematic = false; rb.useGravity = true; rb.linearVelocity = Vector3.up * 2f; }
+            rb.isKinematic = false;
+            rb.useGravity = true;
+            rb.linearVelocity = Vector3.up * 2f;
         }
+
+        Debug.Log($"[EnemyStats] Dropped item: {drop.name} tại {dropPos}");
     }
 }

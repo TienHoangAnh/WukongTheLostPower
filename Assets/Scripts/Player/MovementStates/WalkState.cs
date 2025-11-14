@@ -62,4 +62,6 @@ public class WalkState : IMovementState
         if (context.isGrounded && context.velocity.y < 0f)
             context.velocity.y = -2f;
     }
+    public void ExitState(PlayerMovementContext ctx) { /* reset flag/anim nếu cần */ }
+
 }

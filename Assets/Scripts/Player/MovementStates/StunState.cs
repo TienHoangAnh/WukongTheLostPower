@@ -33,4 +33,6 @@ public class StunState : IMovementState
             }
         }
     }
+    public void ExitState(PlayerMovementContext ctx) { /* reset flag/anim nếu cần */ }
+
 }

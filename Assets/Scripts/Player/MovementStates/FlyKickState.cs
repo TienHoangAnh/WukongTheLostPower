@@ -21,4 +21,6 @@ public class FlyKickState : IMovementState
         // Khi animation kết thúc, bạn có thể về WalkState hoặc IdleState.
         // Thường dùng Animation Event gọi từ clip để SwitchState an toàn hơn.
     }
+    public void ExitState(PlayerMovementContext ctx) { /* reset flag/anim nếu cần */ }
+
 }

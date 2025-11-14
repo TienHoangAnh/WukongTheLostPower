@@ -13,12 +13,27 @@ MonoBehaviour:
   m_Name: ComboData
   m_EditorClassIdentifier: 
   comboSteps:
-  - damage: 15
+  - skillName: 
+    bonusPercent: 10
+    staminaCost: 5
+    cooldown: 1
+    animationName: 
+    damage: 15
     duration: 1.2
     inputWindow: 0.8
-  - damage: 20
+  - skillName: 
+    bonusPercent: 20
+    staminaCost: 5
+    cooldown: 1
+    animationName: 
+    damage: 20
     duration: 1.2
     inputWindow: 0.8
-  - damage: 30
+  - skillName: 
+    bonusPercent: 50
+    staminaCost: 10
+    cooldown: 2
+    animationName: 
+    damage: 30
     duration: 1.5
     inputWindow: 1

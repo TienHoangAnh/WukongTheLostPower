@@ -34,7 +34,7 @@ public class EnemyCounter : MonoBehaviour
 
             if (remaining == 0)
             {
-                skillManager?.UnlockSkillById("heal");
+                skillManager?.UnlockSkillById("Heal");
                 Debug.Log("🔓 Kỹ năng Heal đã được mở khóa!");
 
                 if (chapterTransitionTrigger != null)

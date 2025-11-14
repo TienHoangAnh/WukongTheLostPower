@@ -88,6 +88,11 @@ public class InventorySnapshot
 [Serializable]
 public class SaveSlotDTO
 {
+
+#if FIREBASE_ENABLED
+    [FirestoreProperty]
+#endif
+    public int deathCount { get; set; } = 0;
 #if FIREBASE_ENABLED
     [FirestoreProperty]
 #endif

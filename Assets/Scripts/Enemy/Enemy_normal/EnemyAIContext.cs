@@ -19,7 +19,7 @@ public class EnemyAIContext : MonoBehaviour
     [Tooltip("Distance to start attacking (stop agent)")]
     public float attackDistance = 2f;
     public float chaseSpeed = 3.5f;
-    public float attackCooldown = 1.5f;
+    public float attackCooldown = 1f;
     [Tooltip("Damage for attack type 1")]
     public int attackDamage1 = 2;
     [Tooltip("Damage for attack type 2")]

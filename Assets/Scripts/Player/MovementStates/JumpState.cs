@@ -7,7 +7,7 @@ public class JumpState : IMovementState
         float jumpVelocity = Mathf.Sqrt(context.jumpHeight * -2f * context.gravity);
         context.velocity.y = jumpVelocity;
         context.animator.SetBool("IsJumping", true); // Trigger jump animation
-        Debug.Log("🪂 JumpState: Nhảy lên");
+        Debug.Log("[JumpState] Player jumped upward.");
     }
 
     public void UpdateState(PlayerMovementContext context)
@@ -25,6 +25,12 @@ public class JumpState : IMovementState
         {
             context.animator.SetBool("IsJumping", false); // End jump animation
             context.SwitchState(new WalkState());
+            Debug.Log("[JumpState] Landed — switching back to WalkState.");
         }
+    }
+
+    public void ExitState(PlayerMovementContext ctx)
+    {
+        // Optional cleanup when exiting jump
     }
 }

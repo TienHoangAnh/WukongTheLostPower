@@ -15,25 +15,25 @@ MonoBehaviour:
   comboSteps:
   - skillName: Lien Quyen Hau Vuong
     bonusPercent: 0.1
-    staminaCost: 1
+    staminaCost: 2
     cooldown: 1
-    animationName: combo1
+    animationName: FlyKick
     damage: 0
     duration: 1.2
-    inputWindow: 0.8
+    inputWindow: 1
   - skillName: Cuong Phong Cuoc
     bonusPercent: 0.3
-    staminaCost: 2.5
-    cooldown: 2
-    animationName: combo2
+    staminaCost: 3
+    cooldown: 1
+    animationName: JumpAttack
     damage: 0
     duration: 1.2
-    inputWindow: 0.8
+    inputWindow: 1
   - skillName: Thien Quan Tram
     bonusPercent: 0.5
-    staminaCost: 4
-    cooldown: 5
-    animationName: combo3
+    staminaCost: 5
+    cooldown: 3
+    animationName: FlyKick
     damage: 0
     duration: 1.5
-    inputWindow: 1
+    inputWindow: 2

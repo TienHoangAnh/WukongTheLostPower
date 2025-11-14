@@ -4,13 +4,13 @@
 public class AttackStep
 {
     public string skillName;
-    public float bonusPercent; // ví dụ: 0.1f cho 10%
+    public float bonusPercent;
     public float staminaCost;
     public float cooldown;
     public string animationName;
     public float damage;
     public float duration;
-    public float inputWindow; // thời gian cho phép nhấn tiếp để combo
+    public float inputWindow;
 
     public AttackStep(float damage, float duration, float inputWindow)
     {

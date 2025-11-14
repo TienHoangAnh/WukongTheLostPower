@@ -4,17 +4,27 @@
 public class HealSkill : ScriptableObject, ISkill
 {
     public float healAmount = 30f;
-    public float cooldown = 5f;   // giây
+    public float cooldown = 5f;
+    public float staminaCost = 25f;
     private float _lastUsedTime = -999f;
 
     public void Use(PlayerMovementContext context)
     {
         if (context == null) return;
 
-        // Kiểm tra cooldown
         if (Time.time < _lastUsedTime + cooldown)
         {
             Debug.Log("⏳ HealSkill đang cooldown!");
+            return;
+        }
+
+        var stats = context.GetComponent<PlayerStats>();
+        if (stats == null) return;
+
+        // ⚠️ Kiểm tra đủ năng lượng
+        if (!stats.UseStamina(staminaCost))
+        {
+            Debug.Log($"❌ Không đủ năng lượng để dùng Heal ({staminaCost} MP)!");
             return;
         }
 
@@ -22,20 +32,17 @@ public class HealSkill : ScriptableObject, ISkill
         if (character != null)
         {
             character.Heal(healAmount);
-            Debug.Log($"💚 Hồi máu {healAmount} HP cho Player");
+            Debug.Log($"💚 Hồi {healAmount} HP (-{staminaCost} Mana)");
         }
 
         _lastUsedTime = Time.time;
 
-        // PATCH: nếu muốn lưu cooldown còn lại
+        // Lưu cooldown nếu cần
         if (SaveRuntime.Current != null)
         {
             float remain = Mathf.Max(0, (_lastUsedTime + cooldown) - Time.time);
-            if (SaveRuntime.Current.skillCooldowns == null)
-                SaveRuntime.Current.skillCooldowns = new System.Collections.Generic.Dictionary<string, float>();
-
             SaveRuntime.Current.skillCooldowns["heal"] = remain;
-            _ = CloudSaveManager.SaveNow(SaveRuntime.Current); // autosave fire-and-forget
+            _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
         }
     }
 

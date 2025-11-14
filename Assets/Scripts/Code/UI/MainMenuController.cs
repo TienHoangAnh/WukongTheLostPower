@@ -16,7 +16,7 @@ public class MainMenuController : MonoBehaviour
 
     // Map index is 1-based to match your design (1..N)
     [Header("Maps (1-based)")]
-    [SerializeField] private string[] mapSceneNames = { "", "Chapter1", "Chapter2" };
+    [SerializeField] private string[] mapSceneNames = { "", "Map1", "Map2", "Map3", "Map4", "Map5" };
 
     private bool _isContinue = false;
 
@@ -193,14 +193,14 @@ public class MainMenuController : MonoBehaviour
             string s = mapSceneNames[mapIndex];
             if (!string.IsNullOrEmpty(s)) return s;
         }
-        return "Chapter1";
+        return "Map1";
     }
 
     private void FallbackToMap1()
     {
-        PlayerPrefs.SetString(LastSaveKey, "Chapter1");
+        PlayerPrefs.SetString(LastSaveKey, "Map1");
         PlayerPrefs.Save();
-        SceneManager.LoadScene("Chapter1");
+        SceneManager.LoadScene("Map1");
     }
 
     /// <summary>
