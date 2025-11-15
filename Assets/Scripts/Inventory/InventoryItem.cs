@@ -11,4 +11,10 @@ public class InventoryItem : ScriptableObject
  [TextArea] public string description;
  public bool stackable = true;
  public int maxStack =99;
+
+ [Header("Consumable")]
+ [Tooltip("Amount of HP restored when this item is used.0 = not a HP consumable.")]
+ public float hpRestore =0f;
+ [Tooltip("Amount of stamina restored when this item is used.0 = not a stamina consumable.")]
+ public float staminaRestore =0f;
 }

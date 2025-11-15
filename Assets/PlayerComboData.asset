@@ -17,7 +17,7 @@ MonoBehaviour:
     bonusPercent: 0.1
     staminaCost: 2
     cooldown: 1
-    animationName: FlyKick
+    animationName: JumpAttack
     damage: 0
     duration: 1.2
     inputWindow: 1
@@ -25,7 +25,7 @@ MonoBehaviour:
     bonusPercent: 0.3
     staminaCost: 3
     cooldown: 1
-    animationName: JumpAttack
+    animationName: FlyKick
     damage: 0
     duration: 1.2
     inputWindow: 1

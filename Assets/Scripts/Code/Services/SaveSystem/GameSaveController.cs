@@ -50,7 +50,7 @@ public class GameSaveController : MonoBehaviour
 
         Debug.Log($"[GameSave] Collected {id} x{amount} (Total: {Data.collectedCounts[id]})");
 
-        // Nếu muốn sync cloud, có thể truyền cả count:
+        // Nếu muốn sync cloud, có thể truyền cả count: 
         // _ = FirebasePlayerService.I?.AddCollectedAsync(id, amount);
         try { FirebasePlayerService.I?.AddCollectedAsync(id); } catch { }
     }

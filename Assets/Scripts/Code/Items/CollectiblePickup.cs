@@ -5,9 +5,9 @@ using System;
 [RequireComponent(typeof(CollectibleId))]
 public class CollectiblePickup : MonoBehaviour
 {
-    public static event Action<string, string> OnPicked; // (displayName, id)
+    public static event Action<string, string> OnPicked;
 
-    public string displayName = "Item";
+    [HideInInspector] public string displayName;
     public bool destroyOnPickup = true;
 
     private CollectibleId _id;
@@ -15,6 +15,10 @@ public class CollectiblePickup : MonoBehaviour
     void Awake()
     {
         _id = GetComponent<CollectibleId>();
+
+        // Lấy tên object trực tiếp luôn
+        displayName = gameObject.name;
+
         var col = GetComponent<Collider>();
         col.isTrigger = true;
     }
@@ -25,17 +29,20 @@ public class CollectiblePickup : MonoBehaviour
 
         Debug.Log($"[Pickup] Picked -> {displayName} ({_id.Id})");
 
-        // lưu vào save data (tăng số lượng)
+        // Notify Player UI quick-slots
+        PlayerUIManager.I?.AddItem(_id.Id, 1);
+
+        // Lưu vào save data
         GameSaveController.I?.MarkCollected(_id.Id, 1);
 
-        // nếu có Firebase thì đồng bộ lên cloud
+        // Firebase sync
         if (FirebasePlayerService.I != null)
             await FirebasePlayerService.I.AddCollectedAsync(_id.Id);
 
-        // phát sự kiện cho HUD / hệ thống UI
+        // Gửi event cho DebugHUD
         OnPicked?.Invoke(displayName, _id.Id);
 
-        // xử lý sau khi nhặt
+        // Xử lý sau khi nhặt
         if (destroyOnPickup)
             Destroy(gameObject);
         else

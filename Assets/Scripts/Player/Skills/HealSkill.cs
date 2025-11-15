@@ -4,8 +4,8 @@
 public class HealSkill : ScriptableObject, ISkill
 {
     public float healAmount = 30f;
-    public float cooldown = 5f;
-    public float staminaCost = 25f;
+    public float cooldown = 10f;
+    public float staminaCost = 35f;
     private float _lastUsedTime = -999f;
 
     public void Use(PlayerMovementContext context)

@@ -34,6 +34,8 @@ public class PlayerSkillManager : MonoBehaviour
         foreach (var e in skillCatalog)
         {
             if (e == null || string.IsNullOrWhiteSpace(e.id) || e.behaviour == null) continue;
+
+            // behaviour có thể là ScriptableObject hoặc MonoBehaviour implement ISkill
             var skill = e.behaviour as ISkill;
             if (skill != null && !idToSkill.ContainsKey(e.id))
                 idToSkill.Add(e.id, skill);
@@ -60,20 +62,29 @@ public class PlayerSkillManager : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.Alpha1) && unlockedSkills.ContainsKey(1))
-            unlockedSkills[1].Use(context);
+        HandleKeyUse(1, KeyCode.Alpha1);
+        HandleKeyUse(2, KeyCode.Alpha2);
+        HandleKeyUse(3, KeyCode.Alpha3);
+        HandleKeyUse(4, KeyCode.Alpha4);
+        HandleKeyUse(5, KeyCode.Alpha5);
+    }
 
-        if (Input.GetKeyDown(KeyCode.Alpha2) && unlockedSkills.ContainsKey(2))
-            unlockedSkills[2].Use(context);
+    /// <summary>
+    /// Xử lý nhấn phím kích hoạt skill: nếu có thì dùng, nếu chưa mở thì log ra.
+    /// </summary>
+    private void HandleKeyUse(int key, KeyCode keyCode)
+    {
+        if (!Input.GetKeyDown(keyCode))
+            return;
 
-        if (Input.GetKeyDown(KeyCode.Alpha3) && unlockedSkills.ContainsKey(3))
-            unlockedSkills[3].Use(context);
-
-        if (Input.GetKeyDown(KeyCode.Alpha3) && unlockedSkills.ContainsKey(4))
-            unlockedSkills[4].Use(context);
-
-        if (Input.GetKeyDown(KeyCode.Alpha3) && unlockedSkills.ContainsKey(5))
-            unlockedSkills[5].Use(context);
+        if (unlockedSkills.TryGetValue(key, out var skill) && skill != null)
+        {
+            skill.Use(context);
+        }
+        else
+        {
+            Debug.Log($"[PlayerSkillManager] Kỹ năng phím [{key}] chưa được mở khóa.");
+        }
     }
 
     public void UnlockSkillById(string skillId)
@@ -156,7 +167,7 @@ public class PlayerSkillManager : MonoBehaviour
             string id = FindIdByInstance(skill);
             if (!string.IsNullOrEmpty(id) && !ids.Contains(id)) ids.Add(id);
         }
-        if (ids.Count ==0 && SaveRuntime.Current != null && SaveRuntime.Current.skillsUnlocked != null)
+        if (ids.Count == 0 && SaveRuntime.Current != null && SaveRuntime.Current.skillsUnlocked != null)
         {
             foreach (var s in SaveRuntime.Current.skillsUnlocked)
                 if (!ids.Contains(s)) ids.Add(s);
@@ -190,7 +201,7 @@ public class PlayerSkillManager : MonoBehaviour
 
     private IEnumerator CoDebouncedSave()
     {
-        yield return new WaitForSeconds(autosaveDebounce >0 ? autosaveDebounce :1.0f);
+        yield return new WaitForSeconds(autosaveDebounce > 0 ? autosaveDebounce : 1.0f);
         if (SaveRuntime.Current != null)
             yield return CloudSaveManager.SaveNow(SaveRuntime.Current).AsIEnumerator();
     }

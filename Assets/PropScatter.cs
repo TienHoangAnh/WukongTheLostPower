@@ -30,38 +30,43 @@ public class PropScatter : MonoBehaviour
     public Transform rocksRoot;
     public Transform bouldersRoot;
 
+    /// <summary>
+    /// Clear existing children and rebuild props using the current settings.
+    /// This method is exposed to the inspector via ContextMenu for convenience.
+    /// </summary>
     [ContextMenu("Clear & Rebuild Props")]
     public void ClearAndRebuild()
     {
         Random.InitState(seed);
         EnsureRoots();
 
-        // clear cũ
+        // Remove existing generated children
         ClearChildren(treesRoot);
         ClearChildren(grassesRoot);
         ClearChildren(rocksRoot);
         ClearChildren(bouldersRoot);
         ClearChildren(groundRoot);
 
-        // nền
+        // Optionally spawn a ground mesh and scale it to areaSize
         if (groundPrefab != null)
         {
             var g = Instantiate(groundPrefab, Vector3.zero, Quaternion.identity, groundRoot);
-            // nếu là Plane mặc định 10x10 -> scale theo areaSize
             var plane = g.GetComponent<MeshFilter>();
             if (plane != null)
             {
+                // default Unity Plane is10x10 units -> scale accordingly
                 g.transform.localScale = new Vector3(areaSize.x / 10f, 1, areaSize.y / 10f);
             }
         }
 
-        // scatter từng nhóm
+        // Scatter each group into the map area
         ScatterGroup(trees, treeCount, treesRoot);
         ScatterGroup(grasses, grassCount, grassesRoot);
         ScatterGroup(rocks, rockCount, rocksRoot);
         ScatterGroup(boulders, boulderCount, bouldersRoot);
     }
 
+    // Ensure parent containers exist, create new ones under this GameObject if missing
     void EnsureRoots()
     {
         if (!groundRoot) groundRoot = NewRoot("Ground");
@@ -78,6 +83,7 @@ public class PropScatter : MonoBehaviour
         return go.transform;
     }
 
+    // Remove children safely (immediate in editor)
     void ClearChildren(Transform t)
     {
         if (!t) return;
@@ -91,6 +97,7 @@ public class PropScatter : MonoBehaviour
         }
     }
 
+    // Scatter N instances of randomly chosen prefabs across the area
     void ScatterGroup(List<GameObject> prefabs, int count, Transform parent)
     {
         if (prefabs == null || prefabs.Count == 0 || count <= 0) return;
@@ -105,6 +112,7 @@ public class PropScatter : MonoBehaviour
         }
     }
 
+    // Generate a random position within the area on XZ plane (Y=0)
     Vector3 RandPosOnMap()
     {
         float x = Random.Range(-areaSize.x * 0.5f, areaSize.x * 0.5f);

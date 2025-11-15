@@ -4,12 +4,23 @@ using UnityEngine.SceneManagement;
 
 public class DebugHUD : MonoBehaviour
 {
-    private Rect _rect = new Rect(100, 400, 500, 220);
+    private Rect _rect;
 
-    // lưu item vừa nhặt
     private string _lastPickedName;
+    private string _lastPickedId;
+    private int _lastPickedAmount;
+    private int _lastPickedTotal;
     private float _lastPickedTime;
-    [SerializeField] private float pickedMsgDuration = 4f; // 4s rồi mờ đi
+
+
+    [SerializeField] private float pickedMsgDuration = 5f;
+
+    void Start()
+    {
+        float w = 250f;
+        float h = 250f;
+        _rect = new Rect(Screen.width - w - 10, 50, w, h);
+    }
 
     void OnEnable()
     {
@@ -24,8 +35,18 @@ public class DebugHUD : MonoBehaviour
     private void HandlePicked(string displayName, string id)
     {
         _lastPickedName = displayName;
+        _lastPickedId = id;
         _lastPickedTime = Time.time;
+
+        // hiện tại CollectiblePickup luôn nhặt 1
+        _lastPickedAmount = 1;
+
+        // tổng số hiện có trong save data
+        _lastPickedTotal = (GameSaveController.I != null)
+            ? GameSaveController.I.GetCollectedCount(id)
+            : 0;
     }
+
 
     void Update()
     {
@@ -38,29 +59,26 @@ public class DebugHUD : MonoBehaviour
     void OnGUI()
     {
         GUILayout.BeginArea(_rect, GUI.skin.box);
-        GUILayout.Label("<b>DEBUG HUD</b>");
-        GUILayout.Label($"persistentDataPath:\n{Application.persistentDataPath}");
+        GUILayout.Label("<b>Main Task</b>");
 
-        // Hiện dòng "Bạn nhặt được" trong một khoảng thời gian
         if (!string.IsNullOrEmpty(_lastPickedName))
         {
             var elapsed = Time.time - _lastPickedTime;
             if (elapsed <= pickedMsgDuration)
             {
-                GUILayout.Label($"Bạn nhặt được: <b>{_lastPickedName}</b>");
+                GUILayout.Label(
+                    $"You picked up: <b>{_lastPickedName}</b> " +
+                    $"(+{_lastPickedAmount}, total: {_lastPickedTotal})"
+                );
             }
         }
-
-        if (GameSaveController.I != null)
-        {
-            var sb = new StringBuilder();
-            sb.AppendLine($"Collected: {GameSaveController.I.CollectedIds.Count}");
-            foreach (var id in GameSaveController.I.CollectedIds)
-                sb.AppendLine($" - {id}");
-            GUILayout.Label(sb.ToString());
-        }
-
-        GUILayout.Label("Keys: R = Reload, F9 = Wipe Save");
+        if (GameSaveController.I != null) { 
+            var sb = new StringBuilder(); 
+            sb.AppendLine($"Collected: {GameSaveController.I.CollectedIds.Count}"); 
+            foreach (var id in GameSaveController.I.CollectedIds) sb.AppendLine($" - {id}"); 
+            GUILayout.Label(sb.ToString()); 
+        } 
+        GUILayout.Label("F9 = Wipe Save");
         GUILayout.EndArea();
     }
 }

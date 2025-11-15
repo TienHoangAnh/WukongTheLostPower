@@ -9,9 +9,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: eccd46f3834762c45a88c6eca619b3f3, type: 3}
-  m_Name: HealSkill
+  m_Script: {fileID: 11500000, guid: d8941d65018bb9540ad63231041bd097, type: 3}
+  m_Name: KimEnemyConfig
   m_EditorClassIdentifier: 
-  healAmount: 30
-  cooldown: 10
-  staminaCost: 35
+  enemyId: giap_anh
+  displayName: "Kim Gi\xE1p \u1EA2nh"
+  maxHP: 60
+  armor: 10
+  baseDamage: 5
+  attackCooldown: 1
