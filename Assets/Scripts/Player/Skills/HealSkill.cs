@@ -21,10 +21,9 @@ public class HealSkill : ScriptableObject, ISkill
         var stats = context.GetComponent<PlayerStats>();
         if (stats == null) return;
 
-        // ⚠️ Kiểm tra đủ năng lượng
         if (!stats.UseStamina(staminaCost))
         {
-            Debug.Log($"❌ Không đủ năng lượng để dùng Heal ({staminaCost} MP)!");
+            Debug.Log($"❌ Not enough energy to use Heal ({staminaCost} Stamina)!");
             return;
         }
 
@@ -32,12 +31,11 @@ public class HealSkill : ScriptableObject, ISkill
         if (character != null)
         {
             character.Heal(healAmount);
-            Debug.Log($"💚 Hồi {healAmount} HP (-{staminaCost} Mana)");
+            Debug.Log($"💚 Heal {healAmount} HP (-{staminaCost} Stamina)");
         }
 
         _lastUsedTime = Time.time;
 
-        // Lưu cooldown nếu cần
         if (SaveRuntime.Current != null)
         {
             float remain = Mathf.Max(0, (_lastUsedTime + cooldown) - Time.time);

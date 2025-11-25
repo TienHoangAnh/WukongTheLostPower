@@ -1,13 +1,14 @@
 ﻿using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public class MenuUIManager : MonoBehaviour
 {
+    public static MenuUIManager Instance { get; private set; }
+
     [Header("Panels")]
     [SerializeField] private GameObject menuRoot;      // Canvas gốc của menu
     [SerializeField] private GameObject mainPanel;     // Panel menu chính
-    [SerializeField] private GameObject settingsPanel; // Panel settings
     [SerializeField] private GameObject uiIngameForPC; // UI ingame
 
     [Header("Input & Pause")]
@@ -19,48 +20,45 @@ public class MenuUIManager : MonoBehaviour
     [Header("New Game")]
     [SerializeField] private string newGameSceneName = ""; // để trống = reload scene hiện tại
 
-    [Header("Settings Presets")]
-    [SerializeField]
-    private ResolutionPreset[] presets = new ResolutionPreset[]
-    {
-        new ResolutionPreset("Fullscreen (native)", 0, 0),
-        new ResolutionPreset("1500 x 800 (windowed)", 1500, 800),
-    };
-    [Range(0f, 1f)][SerializeField] private float defaultMasterVolume = 1f;
-
-    [Header("UI Focus (tuỳ chọn)")]
-    [SerializeField] private GameObject firstSelectedMain;
-    [SerializeField] private GameObject firstSelectedSettings;
-
     // ==== State ====
-    public enum UiState { Ingame, MainMenu, Settings }
+    public enum UiState { Ingame, MainMenu }
     private UiState _state = UiState.Ingame;
     public bool IsMenuOpen { get; private set; }
-
-    // ==== Pref keys ====
-    const string PREF_RES_INDEX = "pref_res_index";
-    const string PREF_FULLSCREEN = "pref_fullscreen";
-    const string PREF_VOLUME = "pref_master_volume";
 
     float _prevTimeScale = 1f;
     float _nextToggleAllowedTime = 0f;
 
     void Awake()
     {
+        // Ensure singleton and persist across scenes so ingame UI isn't lost
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+
+            // If menuRoot or uiIngameForPC are assigned and belong to this scene, make them persistent too
+            if (menuRoot != null) DontDestroyOnLoad(menuRoot);
+            if (uiIngameForPC != null) DontDestroyOnLoad(uiIngameForPC);
+        }
+        else if (Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
         // Trạng thái mặc định
         SafeSet(menuRoot, false);
         SafeSet(mainPanel, false);
-        SafeSet(settingsPanel, false);
         SafeSet(uiIngameForPC, true); // UI ingame hiển thị ban đầu
 
-        AudioListener.volume = PlayerPrefs.GetFloat(PREF_VOLUME, defaultMasterVolume);
         IsMenuOpen = false;
         _state = UiState.Ingame;
     }
 
     void Start()
     {
-        ApplySavedSettings();
+        // try to wire up buttons automatically so designer doesn't have to hook them in inspector
+        TryAutoBindMenuButtons();
     }
 
     void Update()
@@ -77,15 +75,12 @@ public class MenuUIManager : MonoBehaviour
     // ===== Public API: nối vào Button/Toggle/Slider =====
     public void ToggleMenu()
     {
-        // ESC: Settings -> Main, Main -> Ingame, Ingame -> Main
-        if (_state == UiState.Settings) ApplyUiState(UiState.MainMenu);
-        else ApplyUiState(_state == UiState.MainMenu ? UiState.Ingame : UiState.MainMenu);
+        // Toggle between MainMenu and Ingame
+        ApplyUiState(_state == UiState.MainMenu ? UiState.Ingame : UiState.MainMenu);
     }
 
     public void ResumeGame() => ApplyUiState(UiState.Ingame);
     public void ContinueButton() => ApplyUiState(UiState.Ingame);
-    public void OpenSettings() => ApplyUiState(UiState.Settings);
-    public void BackFromSettings() => ApplyUiState(UiState.MainMenu);
 
     public void NewGame()
     {
@@ -99,7 +94,6 @@ public class MenuUIManager : MonoBehaviour
         SafeSet(uiIngameForPC, false);
         SafeSet(menuRoot, false);
         SafeSet(mainPanel, false);
-        SafeSet(settingsPanel, false);
         _state = UiState.Ingame;
 
         if (!string.IsNullOrEmpty(newGameSceneName))
@@ -108,46 +102,19 @@ public class MenuUIManager : MonoBehaviour
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
-    // UI – Toggle fullscreen (Toggle onValueChanged)
-    public void SetFullscreen(bool on)
-    {
-        PlayerPrefs.SetInt(PREF_FULLSCREEN, on ? 1 : 0);
-        ApplyResolution(PlayerPrefs.GetInt(PREF_RES_INDEX, 0), on);
-        PlayerPrefs.Save();
-    }
-
-    // UI – Chọn preset độ phân giải (Dropdown/TMP_Dropdown index)
-    public void SetResolutionByIndex(int index)
-    {
-        index = Mathf.Clamp(index, 0, presets.Length - 1);
-        PlayerPrefs.SetInt(PREF_RES_INDEX, index);
-        bool on = PlayerPrefs.GetInt(PREF_FULLSCREEN, 1) == 1;
-        ApplyResolution(index, on);
-        PlayerPrefs.Save();
-    }
-
-    // UI – Slider âm lượng 0..1
-    public void SetMasterVolume(float value)
-    {
-        AudioListener.volume = Mathf.Clamp01(value);
-        PlayerPrefs.SetFloat(PREF_VOLUME, AudioListener.volume);
-        PlayerPrefs.Save();
-    }
-
-    // ===== Core: áp state độc quyền 3 UI =====
+    // ===== Core: áp state độc quyền3 UI =====
     private void ApplyUiState(UiState next)
     {
         // Nếu chuyển sang trạng thái giống hiện tại thì vẫn cho chạy để đồng bộ UI
         _state = next;
         IsMenuOpen = (next != UiState.Ingame);
 
-        // 1) Hiển thị độc quyền
+        //1) Hiển thị độc quyền
         SafeSet(uiIngameForPC, next == UiState.Ingame);
         SafeSet(mainPanel, next == UiState.MainMenu);
-        SafeSet(settingsPanel, next == UiState.Settings);
         SafeSet(menuRoot, next != UiState.Ingame);
 
-        // 2) TimeScale
+        //2) TimeScale
         if (pauseAffectsTimeScale)
         {
             if (next == UiState.Ingame)
@@ -161,7 +128,7 @@ public class MenuUIManager : MonoBehaviour
             }
         }
 
-        // 3) Cursor (desktop/editor)
+        //3) Cursor (desktop/editor)
 #if UNITY_STANDALONE || UNITY_EDITOR
         if (manageCursor)
         {
@@ -169,38 +136,6 @@ public class MenuUIManager : MonoBehaviour
             Cursor.visible = show;
             Cursor.lockState = show ? CursorLockMode.None : CursorLockMode.Locked;
         }
-#endif
-
-        // 4) Focus cho gamepad/keyboard
-        if (EventSystem.current)
-        {
-            GameObject first =
-                (next == UiState.Settings) ? firstSelectedSettings :
-                (next == UiState.MainMenu) ? firstSelectedMain :
-                null;
-            EventSystem.current.SetSelectedGameObject(first);
-        }
-    }
-
-    // ===== Settings load/apply =====
-    private void ApplySavedSettings()
-    {
-        int savedIndex = Mathf.Clamp(PlayerPrefs.GetInt(PREF_RES_INDEX, 0), 0, presets.Length - 1);
-        bool savedFullscreen = PlayerPrefs.GetInt(PREF_FULLSCREEN, 1) == 1;
-        ApplyResolution(savedIndex, savedFullscreen);
-        AudioListener.volume = PlayerPrefs.GetFloat(PREF_VOLUME, defaultMasterVolume);
-    }
-
-    private void ApplyResolution(int index, bool fullscreen)
-    {
-        var p = presets[Mathf.Clamp(index, 0, presets.Length - 1)];
-
-        // Trên desktop/editor mới áp resolution/fullscreen; mobile không cần
-#if UNITY_STANDALONE || UNITY_EDITOR
-        int w = p.width == 0 ? Display.main.systemWidth : p.width;
-        int h = p.height == 0 ? Display.main.systemHeight : p.height;
-        var mode = fullscreen ? FullScreenMode.FullScreenWindow : FullScreenMode.Windowed;
-        Screen.SetResolution(w, h, mode);
 #endif
     }
 
@@ -222,13 +157,27 @@ public class MenuUIManager : MonoBehaviour
             Time.timeScale = (_prevTimeScale <= 0f) ? 1f : _prevTimeScale;
     }
 
-    [System.Serializable]
-    public struct ResolutionPreset
+    // Try to auto-bind common menu buttons by name so UI works without manual wiring in Inspector
+    private void TryAutoBindMenuButtons()
     {
-        public string label;
-        public int width;
-        public int height;
-        public ResolutionPreset(string label, int w, int h)
-        { this.label = label; this.width = w; this.height = h; }
+        if (mainPanel == null) return;
+        var buttons = mainPanel.GetComponentsInChildren<Button>(true);
+        foreach (var b in buttons)
+        {
+            var name = b.gameObject.name.ToLower();
+            if (name.Contains("continue") || name.Contains("resume"))
+            {
+                b.onClick.AddListener(ContinueButton);
+            }
+            else if (name.Contains("new") || name.Contains("newgame"))
+            {
+                b.onClick.AddListener(NewGame);
+            }
+            else if (name.Contains("exit") || name.Contains("quit"))
+            {
+                b.onClick.AddListener(() => Application.Quit());
+            }
+        }
+
     }
 }

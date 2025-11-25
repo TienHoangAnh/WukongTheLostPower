@@ -11,10 +11,10 @@ using TMPro;
 /// </summary>
 public class PlayerUIManager : MonoBehaviour
 {
-    public static PlayerUIManager I { get; private set; }
+    public static PlayerUIManager I { get; set; }
 
     public Slider healthSlider;
-    public Slider manaSlider;
+    //public Slider manaSlider;
     public Slider staminaSider;
     private PlayerStats playerStats;
 
@@ -77,7 +77,7 @@ public class PlayerUIManager : MonoBehaviour
         foreach (var o in others)
         {
             if (o == this) continue;
-            // destroy the root gameobject of the duplicate UI
+            // destroy the root gameobject of the duplicate UI (we keep the persistent instance)
             Destroy(o.gameObject);
         }
 
@@ -87,11 +87,11 @@ public class PlayerUIManager : MonoBehaviour
         if (playerStats == null)
         {
             Debug.LogWarning("[PlayerUIManager] PlayerStats not found after scene load.");
-            return;
+            // still attempt to bind UI elements below
         }
 
         // If this persistent prefab lost slider references (because prefab in scene had them), try to find sliders in scene UI and keep them
-        if ((healthSlider == null || staminaSider == null || manaSlider == null))
+        if ((healthSlider == null || staminaSider == null))
         {
             var sceneCanvases = FindObjectsOfType<Canvas>(true);
             foreach (var c in sceneCanvases)
@@ -102,24 +102,65 @@ public class PlayerUIManager : MonoBehaviour
                 var ms = c.transform.Find("HUD/ManaSlider")?.GetComponent<Slider>();
                 if (hs != null) healthSlider = hs;
                 if (ss != null) staminaSider = ss;
-                if (ms != null) manaSlider = ms;
+            }
+
+            // Fallback: search all sliders by name if the exact path didn't match
+            if (healthSlider == null || staminaSider == null)
+            {
+                var allSliders = FindObjectsOfType<Slider>(true);
+                foreach (var s in allSliders)
+                {
+                    var n = s.gameObject.name.ToLower();
+                    if (healthSlider == null && (n.Contains("health") || n.Contains("hp"))) healthSlider = s;
+                    if (staminaSider == null && (n.Contains("stamina") || n.Contains("stam"))) staminaSider = s;
+                }
+            }
+
+            // Also try to bind item images/texts by common names if they're missing
+            if ((hpItemImage == null || hpItemCountText == null || mpItemImage == null || mpItemCountText == null))
+            {
+                var imgs = FindObjectsOfType<Image>(true);
+                foreach (var im in imgs)
+                {
+                    var n = im.gameObject.name.ToLower();
+                    if (hpItemImage == null && (n.Contains("hpitem") || n.Contains("hp_item") || n.Contains("hp_icon") || n.Contains("hp"))) hpItemImage = im;
+                    if (mpItemImage == null && (n.Contains("mpitem") || n.Contains("mp_item") || n.Contains("mp_icon") || n.Contains("mp"))) mpItemImage = im;
+                }
+                var tmps = FindObjectsOfType<TMP_Text>(true);
+                foreach (var t in tmps)
+                {
+                    var n = t.gameObject.name.ToLower();
+                    if (hpItemCountText == null && (n.Contains("hpcount") || n.Contains("hp_count") || n.Contains("hp_item_count") || n.Contains("hp"))) hpItemCountText = t;
+                    if (mpItemCountText == null && (n.Contains("mpcount") || n.Contains("mp_count") || n.Contains("mp_item_count") || n.Contains("mp"))) mpItemCountText = t;
+                }
             }
         }
 
         // Ensure sliders reflect the new player's values
-        if (healthSlider != null)
+        if (playerStats != null)
         {
-            healthSlider.maxValue = playerStats.maxHealth;
-            healthSlider.value = playerStats.currentHealth;
-        }
-        if (staminaSider != null)
-        {
-            staminaSider.maxValue = playerStats.maxStamina;
-            staminaSider.value = playerStats.currentStamina;
+            if (healthSlider != null)
+            {
+                healthSlider.maxValue = playerStats.maxHealth;
+                healthSlider.value = playerStats.currentHealth;
+            }
+            if (staminaSider != null)
+            {
+                staminaSider.maxValue = playerStats.maxStamina;
+                staminaSider.value = playerStats.currentStamina;
+            }
         }
 
         // Refresh visuals/icons in case scene has new inventory database or assets
         RefreshIconsFromDatabase();
+
+        // Initialize quick-slot counts from saved data so UI shows total counts on load
+        if (GameSaveController.I != null)
+        {
+            hpCount = GameSaveController.I.GetCollectedCount(hpItemId);
+            mpCount = GameSaveController.I.GetCollectedCount(mpItemId);
+        }
+
         UpdateItemSlots();
     }
 
@@ -132,7 +173,7 @@ public class PlayerUIManager : MonoBehaviour
             // Do not disable here; OnSceneLoaded will try to find PlayerStats when a scene is (re)loaded.
         }
 
-        if (healthSlider == null || manaSlider == null || staminaSider == null)
+        if (healthSlider == null || staminaSider == null)
         {
             Debug.LogError("[PlayerUIManager] ❌ Chưa gán Slider trong Inspector! UI will remain active but sliders must be assigned in prefab.");
             // Do NOT disable component: keep alive so persistent UI can rebind when scene loads.
@@ -149,6 +190,14 @@ public class PlayerUIManager : MonoBehaviour
 
         // Initial update of slot icons/counts
         RefreshIconsFromDatabase();
+
+        // Initialize quick-slot counts from saved data at start as well
+        if (GameSaveController.I != null)
+        {
+            hpCount = GameSaveController.I.GetCollectedCount(hpItemId);
+            mpCount = GameSaveController.I.GetCollectedCount(mpItemId);
+        }
+
         UpdateItemSlots();
     }
 
@@ -159,7 +208,7 @@ public class PlayerUIManager : MonoBehaviour
 
     void Update()
     {
-        if (playerStats == null || healthSlider == null || manaSlider == null || staminaSider == null)
+        if (playerStats == null || healthSlider == null || staminaSider == null)
             return;
 
         healthSlider.value = playerStats.currentHealth;
@@ -203,7 +252,7 @@ public class PlayerUIManager : MonoBehaviour
             return;
         }
 
-        if (id == mpItemId)
+        if (id == mpItemId) 
         {
             mpCount += count;
             UpdateItemSlots();
@@ -221,19 +270,46 @@ public class PlayerUIManager : MonoBehaviour
     /// </summary>
     public bool UseHpItem()
     {
-        if (hpCount <=0 || playerStats == null) return false;
+        if (playerStats == null) return false;
 
-        float heal =50f; // default
+        // Prefer using saved/global counts if available
+        if (GameSaveController.I != null)
+        {
+            var available = GameSaveController.I.GetCollectedCount(hpItemId);
+            if (available <=0) return false;
+
+            float heal =50f; // default
+            if (InventoryDatabase.I != null)
+            {
+                var asset = InventoryDatabase.I.GetById(hpItemId);
+                if (asset != null) heal = asset.hpRestore >0 ? asset.hpRestore : heal;
+            }
+
+            playerStats.Heal(heal);
+
+            // Deduct from save and sync internal count from save
+            GameSaveController.I.UseItem(hpItemId,1);
+            hpCount = GameSaveController.I.GetCollectedCount(hpItemId);
+
+            UpdateItemSlots();
+            UI_Toasts.Show($"Used HP item. Healed {heal}");
+            return true;
+        }
+
+        // Fallback to local count logic
+        if (hpCount <=0) return false;
+
+        float fallbackHeal =50f;
         if (InventoryDatabase.I != null)
         {
             var asset = InventoryDatabase.I.GetById(hpItemId);
-            if (asset != null) heal = asset.hpRestore >0 ? asset.hpRestore : heal;
+            if (asset != null) fallbackHeal = asset.hpRestore >0 ? asset.hpRestore : fallbackHeal;
         }
 
-        playerStats.Heal(heal);
+        playerStats.Heal(fallbackHeal);
         hpCount = Mathf.Max(0, hpCount -1);
         UpdateItemSlots();
-        UI_Toasts.Show($"Used HP item. Healed {heal}");
+        UI_Toasts.Show($"Used HP item. Healed {fallbackHeal}");
         return true;
     }
 
@@ -242,19 +318,43 @@ public class PlayerUIManager : MonoBehaviour
     /// </summary>
     public bool UseMpItem()
     {
-        if (mpCount <=0 || playerStats == null) return false;
+        if (playerStats == null) return false;
 
-        float recover =50f; // default
+        if (GameSaveController.I != null)
+        {
+            var available = GameSaveController.I.GetCollectedCount(mpItemId);
+            if (available <=0) return false;
+
+            float recover =50f; // default
+            if (InventoryDatabase.I != null)
+            {
+                var asset = InventoryDatabase.I.GetById(mpItemId);
+                if (asset != null) recover = asset.staminaRestore >0 ? asset.staminaRestore : recover;
+            }
+
+            playerStats.RecoverStamina(recover);
+
+            GameSaveController.I.UseItem(mpItemId,1);
+            mpCount = GameSaveController.I.GetCollectedCount(mpItemId);
+
+            UpdateItemSlots();
+            UI_Toasts.Show($"Used MP item. Recovered {recover}");
+            return true;
+        }
+
+        if (mpCount <=0) return false;
+
+        float fallbackRecover =50f;
         if (InventoryDatabase.I != null)
         {
             var asset = InventoryDatabase.I.GetById(mpItemId);
-            if (asset != null) recover = asset.staminaRestore >0 ? asset.staminaRestore : recover;
+            if (asset != null) fallbackRecover = asset.staminaRestore >0 ? asset.staminaRestore : fallbackRecover;
         }
 
-        playerStats.RecoverStamina(recover);
+        playerStats.RecoverStamina(fallbackRecover);
         mpCount = Mathf.Max(0, mpCount -1);
         UpdateItemSlots();
-        UI_Toasts.Show($"Used MP item. Recovered {recover}");
+        UI_Toasts.Show($"Used MP item. Recovered {fallbackRecover}");
         return true;
     }
 
@@ -276,6 +376,13 @@ public class PlayerUIManager : MonoBehaviour
             mpItemImage.gameObject.SetActive(mpCount >0);
             mpItemCountText.gameObject.SetActive(mpCount >0);
             mpItemCountText.text = mpCount >0 ? mpCount.ToString() : "";
+        }
+
+        // Also update sliders immediately from playerStats if present
+        if (playerStats != null)
+        {
+            if (healthSlider != null) healthSlider.value = playerStats.currentHealth;
+            if (staminaSider != null) staminaSider.value = playerStats.currentStamina;
         }
     }
 

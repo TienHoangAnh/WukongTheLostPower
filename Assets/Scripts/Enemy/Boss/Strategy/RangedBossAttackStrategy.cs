@@ -18,7 +18,7 @@ public class RangedBossAttackStrategy : IBossAttackStrategy
         {
             GameObject proj = GameObject.Instantiate(context.projectilePrefab, context.transform.position + Vector3.up, Quaternion.identity);
             proj.GetComponent<RangedProjectile>()?.SetTarget(context.player);
-            Debug.Log("🏹 Ranged Boss tấn công từ xa!");
+            Debug.Log("🏹 Ranged Boss attacks from a distance!");
         }
     }
 }

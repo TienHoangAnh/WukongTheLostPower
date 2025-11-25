@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6af0e73a0d9b5ac41b390f2221459a9a, type: 3}
   m_Name: Map_Thuy_Config
   m_EditorClassIdentifier: 
-  element: 0
+  element: 2
   enemyPrefab: {fileID: 0}
   enemyCount: 15
   useUnityTerrain: 1

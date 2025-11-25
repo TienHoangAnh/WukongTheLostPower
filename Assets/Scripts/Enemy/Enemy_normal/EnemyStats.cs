@@ -3,7 +3,7 @@
 public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
 {
     [Header("Drops")]
-    [Tooltip("Các vật phẩm rơi ra khi enemy chết (prefab)")]
+    [Tooltip("Items dropped when enemies die (prefab)")]
     public GameObject[] dropItems;
 
     [Header("Stats")]
@@ -12,9 +12,9 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
 
     private float currentHealth;
     private Animator animator;
-    private bool isDead = false; // ✅ Ngăn drop hoặc Die() nhiều lần
+    private bool isDead = false;
 
-    [Header("Config (tùy chọn)")]
+    [Header("Config (Optional)")]
     public EnemySimpleConfig config;
 
     // --------------------------------------------------------------
@@ -56,13 +56,12 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
     // --------------------------------------------------------------
     public void TakeDamage(float amount)
     {
-        if (isDead) return; // ✅ Bỏ qua nếu đã chết
+        if (isDead) return;
 
         float finalDamage = Mathf.Max(amount - armor, 1f);
         currentHealth -= finalDamage;
 
-        Debug.Log($"{gameObject.name} trúng đòn: {amount} (giáp {armor}) => {finalDamage}. Máu còn lại: {currentHealth}");
-
+        Debug.Log($"{gameObject.name} hit: {amount} (armor {armor}) => {finalDamage}. Remaining Health: {currentHealth}");
         if (animator != null)
             animator.SetTrigger("TakeDamage");
 
@@ -81,17 +80,14 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
         if (isDead) return;
         isDead = true;
 
-        Debug.Log($"{gameObject.name} chết!");
+        Debug.Log($"{gameObject.name} die!");
 
-        // Ngăn enemy bị đánh tiếp
         Collider col = GetComponent<Collider>();
         if (col != null) col.enabled = false;
         gameObject.tag = "Untagged";
 
-        // Drop vật phẩm 1 lần
         DropItems();
 
-        // Ghi lại trạng thái vào save
         var idComp = GetComponent<EnemyId>();
         string eid = idComp != null ? idComp.id : null;
 
@@ -107,7 +103,6 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
             }
         }
 
-        // Gọi logic AI chết
         var ai = GetComponent<EnemyAIContext>();
         if (ai != null)
         {
@@ -115,35 +110,28 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
         }
         else
         {
-            Destroy(gameObject, 2f); // ⏳ chờ anim death kết thúc
+            Destroy(gameObject, 1f);
         }
     }
 
     private void DropItems()
     {
-        // Không có item để rơi
         if (dropItems == null || dropItems.Length == 0) return;
 
-        // Lấy item đầu tiên (hoặc chỉ 1 item duy nhất bạn gán)
         var prefab = dropItems[0];
         if (prefab == null) return;
 
-        // Tạo vị trí rơi hơi cao 1 chút để nhìn rõ
         Vector3 dropPos = transform.position + Vector3.up * 1f;
         var drop = Instantiate(prefab, dropPos, Quaternion.identity);
 
-        // ✅ Bật GameObject nếu prefab đang tắt
         drop.SetActive(true);
 
-        // ✅ Đảm bảo collider bật để có thể nhặt
         var col = drop.GetComponent<Collider>();
         if (col != null) col.enabled = true;
 
-        // ✅ Bật renderer để hiển thị
         var rend = drop.GetComponent<Renderer>();
         if (rend != null) rend.enabled = true;
 
-        // ✅ Nếu có Rigidbody, cho rơi tự nhiên
         var rb = drop.GetComponent<Rigidbody>();
         if (rb != null)
         {

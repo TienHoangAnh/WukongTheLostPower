@@ -5,44 +5,56 @@ using System;
 [RequireComponent(typeof(CollectibleId))]
 public class CollectiblePickup : MonoBehaviour
 {
+    /// <summary>
+    /// Global event raised when an item is picked up.
+    /// Parameters: (displayName, itemKey).
+    /// </summary>
     public static event Action<string, string> OnPicked;
 
-    [HideInInspector] public string displayName;
+    [HideInInspector]
+    public string displayName;
+
+    [Tooltip("If true, the GameObject will be destroyed after pickup. Otherwise it will be deactivated.")]
     public bool destroyOnPickup = true;
 
     private CollectibleId _id;
 
-    void Awake()
+    private void Awake()
     {
+        // Cache collectible identifier
         _id = GetComponent<CollectibleId>();
 
-        // Lấy tên object trực tiếp luôn
+        // Default display name to the GameObject name
         displayName = gameObject.name;
 
+        // Ensure collider works as a trigger volume
         var col = GetComponent<Collider>();
-        col.isTrigger = true;
+        if (col != null)
+            col.isTrigger = true;
     }
 
-    async void OnTriggerEnter(Collider other)
+    private async void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
+        // Only react to the player
+        if (!other.CompareTag("Player"))
+            return;
 
-        Debug.Log($"[Pickup] Picked -> {displayName} ({_id.Id})");
+        Debug.Log($"[Pickup] Picked -> {displayName} ({_id.Key})");
 
-        // Notify Player UI quick-slots
-        PlayerUIManager.I?.AddItem(_id.Id, 1);
+        // Update player UI / inventory representation
+        PlayerUIManager.I?.AddItem(_id.Key, 1);
 
-        // Lưu vào save data
-        GameSaveController.I?.MarkCollected(_id.Id, 1);
+        // Update local save data
+        GameSaveController.I?.MarkCollected(_id.Key, 1);
 
-        // Firebase sync
+        // Sync to cloud if available
         if (FirebasePlayerService.I != null)
-            await FirebasePlayerService.I.AddCollectedAsync(_id.Id);
+            await FirebasePlayerService.I.AddCollectedAsync(_id.Key);
 
-        // Gửi event cho DebugHUD
-        OnPicked?.Invoke(displayName, _id.Id);
+        // Notify listeners (e.g. debug HUD, shard listeners, analytics)
+        OnPicked?.Invoke(displayName, _id.Key);
 
-        // Xử lý sau khi nhặt
+        // Remove or hide the world object after pickup
         if (destroyOnPickup)
             Destroy(gameObject);
         else

@@ -194,7 +194,7 @@ public class PlayerMovementContext : MonoBehaviour
             _saveRuntimeTimer = 0f;
             SaveRuntime.Current.player.pos = new Vector3DTO(transform.position);
             SaveRuntime.Current.player.rotY = transform.eulerAngles.y;
-            Debug.Log("[SaveRuntime] Player position updated.");
+            //Debug.Log("[SaveRuntime] Player position updated.");
         }
     }
 

@@ -24,6 +24,22 @@ public class PowerSurgeSkill : ScriptableObject, ISkill
         context.StartCoroutine(BuffRoutine(stats));
         _lastUsedTime = Time.time;
         Debug.Log($"⚡ Power Surge kích hoạt! +{bonusPercent * 100}% Damage trong {duration}s");
+
+        // Save remaining cooldown to runtime and cloud so it persists
+        try
+        {
+            if (SaveRuntime.Current != null)
+            {
+                float remain = Mathf.Max(0f, (_lastUsedTime + cooldown) - Time.time);
+                SaveRuntime.Current.skillCooldowns ??= new System.Collections.Generic.Dictionary<string, float>();
+                SaveRuntime.Current.skillCooldowns["power_surge"] = remain;
+                _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[PowerSurgeSkill] Failed to save cooldown: {ex.Message}");
+        }
     }
 
     private IEnumerator BuffRoutine(PlayerStats stats)
@@ -32,6 +48,19 @@ public class PowerSurgeSkill : ScriptableObject, ISkill
         yield return new WaitForSeconds(duration);
         stats.baseDamage /= (1f + bonusPercent);
         Debug.Log("⏳ Power Surge hết hiệu lực");
+
+        // When buff ends we should also update remaining cooldown (it will be cooldown - elapsed since use).
+        try
+        {
+            if (SaveRuntime.Current != null)
+            {
+                float remain = Mathf.Max(0f, (_lastUsedTime + cooldown) - Time.time);
+                SaveRuntime.Current.skillCooldowns ??= new System.Collections.Generic.Dictionary<string, float>();
+                SaveRuntime.Current.skillCooldowns["power_surge"] = remain;
+                _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+            }
+        }
+        catch { }
     }
 
     public string GetName() => "Power Surge";

@@ -41,7 +41,7 @@ public class MainMenuController : MonoBehaviour
 
     public void OnLeaderboard()
     {
-        SceneManager.LoadScene("Leaderboard");
+        if (LoadingScreen.I != null) LoadingScreen.LoadScene("Leaderboard"); else SceneManager.LoadScene("Leaderboard");
     }
 
     public void OnSettings()
@@ -88,14 +88,35 @@ public class MainMenuController : MonoBehaviour
             // Start from map 1 for a new game
             dto.currentMap = 1;
 
+            // Reset hp/stamina to full for starting the run, but keep unlocked skills
+            if (dto.player == null) dto.player = new PlayerStateDTO();
+            dto.player.hp = 100;
+            dto.player.stamina = 100;
+
             SaveRuntime.Current = dto;
+
+            // Ensure Firebase/runtime is ready and persist the new slot immediately
+#if FIREBASE_ENABLED
+            try
+            {
+                await FirebaseRuntime.EnsureInitializedAsync();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[MainMenu] Firebase init failed when saving new game: {e.Message}");
+            }
+#endif
+            Debug.Log("[MainMenu] Saving new slot to local/cloud before loading Map1...");
             await CloudSaveManager.SaveNow(dto);
 
             string scene = SceneNameForMap(1);
             PlayerPrefs.SetString(LastSaveKey, scene);
             PlayerPrefs.Save();
 
-            SceneManager.LoadScene(scene);
+            // Ensure ChapterManager reflects the chosen starting map
+            EnsureChapterIsSetOnNextLoad(1);
+
+            if (LoadingScreen.I != null) LoadingScreen.LoadScene(scene); else SceneManager.LoadScene(scene);
         }
         catch (Exception ex)
         {
@@ -114,15 +135,79 @@ public class MainMenuController : MonoBehaviour
             if (string.IsNullOrEmpty(dto.playerName))
                 dto.playerName = playerName;
 
-            SaveRuntime.Current = dto;
+            // Ensure player state exists
+            if (dto.player == null) dto.player = new PlayerStateDTO();
 
             int targetMap = (dto.currentMap <= 0) ? 1 : dto.currentMap;
+
+            // If the saved player HP is 0 (player had died and was returned to main menu),
+            // resurrect the player: reset hp/stamina to full and clear inventory/collected counts
+            if (dto.player.hp <= 0)
+            {
+                Debug.Log("[MainMenu] Detected save with player HP = 0. Resetting HP/Stamina to full and clearing inventory to avoid item abuse.");
+
+                dto.player.hp = 100;
+                dto.player.stamina = 100;
+
+                // Clear inventory snapshot
+                dto.inventory = new InventorySnapshot();
+
+                // Clear per-item collected counts to prevent previously collected items from being kept
+                dto.collectedCounts = new System.Collections.Generic.Dictionary<string, int>();
+
+                // Reset map to first when resurrecting to avoid jumping due to stale ChapterManager/currentMap
+                dto.currentMap = 1;
+
+                // Persist the updated dto so continue starts from a clean resurrected state
+                SaveRuntime.Current = dto;
+                await CloudSaveManager.SaveNow(dto);
+
+                // Also clear local item save (GameSaveController / SaveSystem) so local 'collected' flags won't allow skipping
+                try
+                {
+                    var g = GameSaveController.I;
+                    if (g != null)
+                    {
+                        g.Data.collectedCounts = new System.Collections.Generic.Dictionary<string, int>();
+                        g.Data.collectedIds = new System.Collections.Generic.List<string>();
+                        g.CollectedIds.Clear();
+                        SaveSystem.Save(g.Data);
+#if UNITY_EDITOR
+                        Debug.Log("[MainMenu] Cleared local item save (GameSaveController).");
+#endif
+                    }
+                    else
+                    {
+                        // If GameSaveController not present, write an empty save file anyway
+                        SaveSystem.Save(new SaveData { collectedCounts = new System.Collections.Generic.Dictionary<string, int>(), collectedIds = new System.Collections.Generic.List<string>() });
+#if UNITY_EDITOR
+                        Debug.Log("[MainMenu] Cleared local item save (SaveSystem fallback).");
+#endif
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogWarning($"[MainMenu] Failed to clear local item save: {ex.Message}");
+                }
+
+                // recompute targetMap in case dto.currentMap changed above
+                targetMap = (dto.currentMap <= 0) ? 1 : dto.currentMap;
+            }
+            else
+            {
+                // Normal continue — restore saved hp/stamina and items
+                SaveRuntime.Current = dto;
+            }
+
             string sceneName = SceneNameForMap(targetMap);
 
             PlayerPrefs.SetString(LastSaveKey, sceneName);
             PlayerPrefs.Save();
 
-            SceneManager.LoadScene(sceneName);
+            // Ensure ChapterManager reflects the loaded map (important because ChapterManager is DontDestroyOnLoad)
+            EnsureChapterIsSetOnNextLoad(targetMap);
+
+            if (LoadingScreen.I != null) LoadingScreen.LoadScene(sceneName); else SceneManager.LoadScene(sceneName);
         }
         catch (Exception ex)
         {
@@ -132,20 +217,49 @@ public class MainMenuController : MonoBehaviour
             {
                 SaveRuntime.Current = local;
                 string sceneName = SceneNameForMap(local.currentMap <= 0 ? 1 : local.currentMap);
-                SceneManager.LoadScene(sceneName);
+
+                // Ensure chapter sync
+                EnsureChapterIsSetOnNextLoad(local.currentMap <= 0 ? 1 : local.currentMap);
+
+                if (LoadingScreen.I != null) LoadingScreen.LoadScene(sceneName); else SceneManager.LoadScene(sceneName);
                 return;
             }
 
             if (PlayerPrefs.HasKey(LastSaveKey))
             {
                 string lastScene = PlayerPrefs.GetString(LastSaveKey);
-                SceneManager.LoadScene(lastScene);
+                if (LoadingScreen.I != null) LoadingScreen.LoadScene(lastScene); else SceneManager.LoadScene(lastScene);
             }
             else
             {
                 FallbackToMap1();
             }
         }
+    }
+
+    // Helper: ensure ChapterManager.currentMap matches the map we're about to load.
+    // If ChapterManager already exists, set immediately. Otherwise set on next scene load.
+    private void EnsureChapterIsSetOnNextLoad(int mapIndex)
+    {
+        if (ChapterManager.Instance != null)
+        {
+            ChapterManager.Instance.currentMap = mapIndex;
+            Debug.Log($"[MainMenu] ChapterManager currentMap set to {mapIndex} immediately.");
+            return;
+        }
+
+        // Otherwise, set once after the next scene loads
+        void OnLoaded(Scene s, LoadSceneMode m)
+        {
+            if (ChapterManager.Instance != null)
+            {
+                ChapterManager.Instance.currentMap = mapIndex;
+                Debug.Log($"[MainMenu] ChapterManager currentMap set to {mapIndex} on sceneLoaded.");
+            }
+            SceneManager.sceneLoaded -= OnLoaded;
+        }
+
+        SceneManager.sceneLoaded += OnLoaded;
     }
 
     // -------- HELPERS --------
@@ -200,7 +314,7 @@ public class MainMenuController : MonoBehaviour
     {
         PlayerPrefs.SetString(LastSaveKey, "Map1");
         PlayerPrefs.Save();
-        SceneManager.LoadScene("Map1");
+        if (LoadingScreen.I != null) LoadingScreen.LoadScene("Map1"); else SceneManager.LoadScene("Map1");
     }
 
     /// <summary>

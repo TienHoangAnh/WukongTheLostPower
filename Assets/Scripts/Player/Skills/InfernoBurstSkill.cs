@@ -32,6 +32,22 @@ public class InfernoBurstSkill : ScriptableObject, ISkill
 
         Debug.Log($"🔥 Inferno Burst gây {baseDamage} + Burn {burnDamage}/s trong {burnDuration}s");
         _lastUsed = Time.time;
+
+        // Persist cooldown remaining to save runtime and cloud
+        try
+        {
+            if (SaveRuntime.Current != null)
+            {
+                float remain = Mathf.Max(0f, (_lastUsed + cooldown) - Time.time);
+                SaveRuntime.Current.skillCooldowns ??= new System.Collections.Generic.Dictionary<string, float>();
+                SaveRuntime.Current.skillCooldowns["inferno_burst"] = remain;
+                _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[InfernoBurstSkill] Failed to save cooldown: {ex.Message}");
+        }
     }
 
     IEnumerator ApplyBurn(ICharacter target)

@@ -1,5 +1,6 @@
 ﻿using System;
 using UnityEngine;
+using System.Collections.Generic;
 
 public static class SaveCapture
 {
@@ -40,6 +41,17 @@ public static class SaveCapture
                 elixir = inventory.GetCount("elixir"),
                 power_pill = inventory.GetCount("power_pill")
             };
+
+            // Save all collected item counts (id -> count)
+            if (dto.collectedCounts == null)
+                dto.collectedCounts = new Dictionary<string, int>();
+            dto.collectedCounts.Clear();
+            var all = inventory.GetType().GetMethod("GetAll")?.Invoke(inventory, null) as Dictionary<string, int>;
+            if (all != null)
+            {
+                foreach (var kv in all)
+                    dto.collectedCounts[kv.Key] = kv.Value;
+            }
         }
 
         // Skill

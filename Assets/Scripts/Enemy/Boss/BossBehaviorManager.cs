@@ -13,18 +13,18 @@ public class BossBehaviorManager : MonoBehaviour
         if (style == "Melee")
         {
             Instantiate(meleeEnemyPrefab, spawnPoint.position, Quaternion.identity);
-            Debug.Log("💢 Boss triệu hồi quái CẬN CHIẾN");
+            Debug.Log("💢 Boss summons MELEE monster");
         }
         else if (style == "Ranged")
         {
             Instantiate(rangedEnemyPrefab, spawnPoint.position, Quaternion.identity);
-            Debug.Log("💥 Boss triệu hồi quái TẦM XA");
+            Debug.Log("💥 Boss summons long range monsters");
         }
         else
         {
             Instantiate(meleeEnemyPrefab, spawnPoint.position, Quaternion.identity);
             Instantiate(rangedEnemyPrefab, spawnPoint.position + Vector3.right * 2f, Quaternion.identity);
-            Debug.Log("🌀 Boss triệu hồi cả hai loại quái");
+            Debug.Log("🌀 Boss summons both types of monsters");
         }
     }
 }

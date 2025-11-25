@@ -20,7 +20,7 @@ public class MeleeBossAttackStrategy : IBossAttackStrategy
             if (player != null)
             {
                 player.TakeDamage(context.stats.damage);
-                Debug.Log($"👊 Melee Boss gây {context.stats.damage} sát thương!");
+                Debug.Log($"👊 Melee Boss deals {context.stats.damage} damage!");
             }
         }
     }

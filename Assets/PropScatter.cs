@@ -3,27 +3,27 @@ using System.Collections.Generic;
 
 public class PropScatter : MonoBehaviour
 {
-    [Header("Khu vực map (X,Z) mét")]
+    [Header("Map area (X,Z) meters")]
     public Vector2 areaSize = new Vector2(200, 200);
 
     [Header("Prefabs")]
-    public GameObject groundPrefab;      // nền đất (plane/mesh) - optional
-    public List<GameObject> trees;       // cây
-    public List<GameObject> grasses;     // cỏ bụi
-    public List<GameObject> rocks;       // đá nhỏ
-    public List<GameObject> boulders;    // tảng đá lớn
+    public GameObject groundPrefab;
+    public List<GameObject> trees;
+    public List<GameObject> grasses;
+    public List<GameObject> rocks;
+    public List<GameObject> boulders;
 
-    [Header("Số lượng mỗi nhóm")]
+    [Header("Number of groups")]
     public int treeCount = 40;
     public int grassCount = 120;
     public int rockCount = 60;
     public int boulderCount = 15;
 
-    [Header("Ngẫu nhiên")]
+    [Header("Random")]
     public int seed = 1234;
     public Vector2 uniformScaleRange = new Vector2(0.9f, 1.3f);
 
-    [Header("Parents (tự tạo nếu trống)")]
+    [Header("Parents (create if empty)")]
     public Transform groundRoot;
     public Transform treesRoot;
     public Transform grassesRoot;

@@ -6,6 +6,9 @@ using UnityEngine;
 using Firebase.Firestore;
 #endif
 
+///
+/// cloud save manager with local-first strategy
+/// 
 /// Local-first save orchestrator (newest-wins via lastSavedAtUnix in ms)
 public static class CloudSaveManager
 {

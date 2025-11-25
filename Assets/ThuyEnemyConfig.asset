@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d8941d65018bb9540ad63231041bd097, type: 3}
   m_Name: ThuyEnemyConfig
   m_EditorClassIdentifier: 
-  enemyId: giap_anh
-  displayName: "Kim Gi\xE1p \u1EA2nh"
+  enemyId: thuy_hon
+  displayName: "Thu\u1EF7 H\u1ED3n"
   maxHP: 60
   armor: 10
   baseDamage: 5

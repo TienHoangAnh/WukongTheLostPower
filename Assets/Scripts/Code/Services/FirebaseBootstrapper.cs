@@ -1,6 +1,10 @@
 ﻿#if FIREBASE_ENABLED
 using UnityEngine;
 
+/// <summary>
+/// initialize Firebase app on Awake
+/// </summary>
+
 public class FirebaseBootstrapper : MonoBehaviour
 {
     private async void Awake()

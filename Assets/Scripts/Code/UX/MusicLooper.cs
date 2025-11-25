@@ -15,7 +15,6 @@ public class MusicLooper : MonoBehaviour
 
     void Update()
     {
-        // Khi nhạc phát xong thì chuyển bài
         if (!audioSource.isPlaying)
         {
             PlayNextTrack();

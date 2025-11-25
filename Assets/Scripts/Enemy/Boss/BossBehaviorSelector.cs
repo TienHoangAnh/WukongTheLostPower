@@ -4,40 +4,40 @@ public class BossBehaviorSelector : MonoBehaviour
 {
     public GameObject meleeBossPrefab;
     public GameObject rangedBossPrefab;
-    public GameObject hybridBossPrefab; // Thêm prefab Hybrid
+    public GameObject hybridBossPrefab;
     public Transform spawnPoint;
 
     void Start()
     {
         string style = FindFirstObjectByType<PlayerBehaviorTracker>().GetPlaystyle();
-        Debug.Log("🔍 Phong cách chơi người chơi: " + style);
+        Debug.Log("🔍 Player play style: " + style);
 
         GameObject boss = null;
 
         if (style == "Melee")
         {
             boss = Instantiate(rangedBossPrefab, spawnPoint.position, Quaternion.identity);
-            Debug.Log("🧠 Sinh Boss tầm xa (vì người chơi hay đánh cận chiến)");
+            Debug.Log("🧠 Spawn long-range Boss (because players often fight in close combat)");
         }
         else if (style == "Ranged")
         {
             boss = Instantiate(meleeBossPrefab, spawnPoint.position, Quaternion.identity);
-            Debug.Log("🧠 Sinh Boss cận chiến (vì người chơi hay đánh xa)");
+            Debug.Log("🧠 Spawn melee boss (because the player often attacks from a distance)");
         }
         else
         {
             boss = Instantiate(hybridBossPrefab, spawnPoint.position, Quaternion.identity);
-            Debug.Log("🧠 Sinh Boss hỗn hợp (người chơi cân bằng giữa đánh xa & gần)");
+            Debug.Log("🧠 Mixed Boss Spawn (player balances between ranged & melee)");
         }
 
         if (boss == null)
         {
-            Debug.LogError("❌ Không tạo được boss! Prefab bị null?");
+            Debug.LogError("❌ Unable to create boss! Prefab is null?");
         }
         else
         {
-            boss.SetActive(true); // đảm bảo boss không bị tắt
-            Debug.Log("✅ Đã tạo boss: " + boss.name);
+            boss.SetActive(true);
+            Debug.Log("✅ Boss created: " + boss.name);
         }
 
     }

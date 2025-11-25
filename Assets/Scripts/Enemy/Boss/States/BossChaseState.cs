@@ -5,7 +5,7 @@ public class BossChaseState : IBossState
     public void EnterState(BossContext context)
     {
         context.agent.isStopped = false;
-        Debug.Log("🏃 Boss đuổi theo người chơi.");
+        Debug.Log("🏃 Boss chases the player.");
     }
 
     public void UpdateState(BossContext context)

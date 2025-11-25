@@ -19,5 +19,4 @@ public class InventoryDatabase : MonoBehaviour
  }
 
  public static InventoryItem GetByIdStatic(string id) => I != null ? I.GetById(id) : null;
- // convenience for UI
 }

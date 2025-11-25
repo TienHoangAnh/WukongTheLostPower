@@ -5,7 +5,6 @@ using UnityEngine.SceneManagement;
 [DisallowMultipleComponent]
 public class EnemyAIContext : MonoBehaviour
 {
-    // Thêm field để cache:
     private EnemyStats _stats;
 
     [Header("References")]
@@ -26,13 +25,13 @@ public class EnemyAIContext : MonoBehaviour
     public int attackDamage2 = 5;
     [Range(0f, 1f)] public float chanceAttack2 = 0.25f;
 
-    [Tooltip("Layer của Player để OverlapSphere gây damage chính xác")]
+    [Tooltip("Player Layer to OverlapSphere for precise damage")]
     public LayerMask playerLayer = 1 << 8;
 
     [Header("Attack Hitbox")]
-    [Tooltip("Tâm hitbox khi Animation Event xảy ra (nếu null dùng vị trí enemy).")]
+    [Tooltip("Hitbox center when Animation Event occurs (if null use enemy position).")]
     public Transform hitOrigin;
-    [Tooltip("Bán kính hitbox khi tung đòn.")]
+    [Tooltip("Hitbox radius when launching an attack.")]
     public float hitRadius = 2f;
 
     [Header("Debug")]
@@ -89,7 +88,7 @@ public class EnemyAIContext : MonoBehaviour
 
         if (_stats != null)
         {
-            attackCooldown = _stats.GetAttackCooldown();  // = 1.0s theo yêu cầu
+            attackCooldown = _stats.GetAttackCooldown();
         }
 
         SwitchState(new EnemyIdleState());
@@ -160,8 +159,7 @@ public class EnemyAIContext : MonoBehaviour
 
         Collider[] hits = Physics.OverlapSphere(center, hitRadius, playerLayer, QueryTriggerInteraction.Ignore);
 
-        // >>> SỬA: damage lấy từ EnemyStats (coef theo AttackIndex để bạn còn đổi anim)
-        float coef = (lastAttackIndex == 2) ? 1.2f : 1.0f;  // tuỳ thích 0.8/1.2
+        float coef = (lastAttackIndex == 2) ? 1.2f : 1.0f;
         int dmg = Mathf.RoundToInt(_stats != null ? _stats.GetAttackDamage(coef) : (lastAttackIndex == 2 ? 5 : 2));
 
         bool applied = false;

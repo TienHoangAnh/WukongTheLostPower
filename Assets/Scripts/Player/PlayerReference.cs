@@ -13,7 +13,7 @@ public class PlayerReference : MonoBehaviour
         }
         else
         {
-            Destroy(gameObject); // tránh tạo player trùng lặp ở scene sau
+            Destroy(gameObject);
         }
     }
 }

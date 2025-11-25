@@ -5,7 +5,7 @@ public class BossAttackState : IBossState
     public void EnterState(BossContext context)
     {
         context.agent.isStopped = true;
-        Debug.Log("⚔ Boss chuyển sang trạng thái tấn công.");
+        Debug.Log("⚔ Boss goes into attack mode.");
     }
 
     public void UpdateState(BossContext context)

@@ -7,17 +7,21 @@ public class ChapterTransitionTrigger : MonoBehaviour
     public static ChapterTransitionTrigger Instance { get; private set; }
 
     [Header("Transition Settings")]
-    [Tooltip("Time needed to stand in the area to pass the map (seconds)")]
+    [Tooltip("Time the player needs to stand in this area before transitioning (in seconds).")]
     public float requiredTime = 3f;
 
-    [Tooltip("If true, players can only start transition when there are no enemies left (GameObjects tagged 'Enemy').")]
+    [Tooltip("If true, transition can only start when there are no GameObjects tagged 'Enemy'.")]
     public bool requireNoEnemies = true;
 
-    [Tooltip("Optional: skill id to unlock when passing this transition (calls PlayerSkillManager.UnlockSkillById)")]
+    [Tooltip("Optional skill id to unlock when passing this transition (calls PlayerSkillManager.UnlockSkillById).")]
     public string unlockSkillId;
 
-    [Tooltip("If true, this trigger will persist across scenes and be reused. Scenes may provide a GameObject named 'TransitionAnchor' to reposition it.")]
+    [Tooltip("If true, this trigger will persist across scenes. Scenes may provide a 'TransitionAnchor' to reposition it.")]
     public bool persistAcrossScenes = true;
+
+    [Header("Per-map required item (optional)")]
+    [Tooltip("Optional mapping: map index -> required collectible id. Index is the map number (1-based). Leave blank to not require an item.")]
+    public string[] requiredItemForMaps = new string[0];
 
     private float timer = 0f;
     private bool isPlayerInZone = false;
@@ -25,12 +29,15 @@ public class ChapterTransitionTrigger : MonoBehaviour
 
     private void Awake()
     {
-        // Đảm bảo collider là trigger
+        // Ensure collider is configured as trigger
         var col = GetComponent<Collider>();
-        if (col != null) col.isTrigger = true;
+        if (col != null)
+            col.isTrigger = true;
 
-        if (!persistAcrossScenes) return;
+        if (!persistAcrossScenes)
+            return;
 
+        // Simple singleton pattern for a persistent transition trigger
         if (Instance == null)
         {
             Instance = this;
@@ -38,7 +45,6 @@ public class ChapterTransitionTrigger : MonoBehaviour
         }
         else if (Instance != this)
         {
-            // Bản duplicate do scene spawn → xoá
             Destroy(gameObject);
         }
     }
@@ -55,18 +61,21 @@ public class ChapterTransitionTrigger : MonoBehaviour
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (!persistAcrossScenes) return;
-        if (Instance != this) return;
+        if (!persistAcrossScenes)
+            return;
+        if (Instance != this)
+            return;
 
-        // Xoá các ChapterTransitionTrigger khác (nếu có) bằng API mới
+        // Remove any duplicate ChapterTransitionTrigger objects if they were created by the new scene
         var others = FindObjectsByType<ChapterTransitionTrigger>(FindObjectsSortMode.None);
         foreach (var t in others)
         {
-            if (t == this) continue;
+            if (t == this)
+                continue;
             Destroy(t.gameObject);
         }
 
-        // Reposition theo anchor của scene mới (nếu có)
+        // Reposition to optional scene anchor
         var anchor = GameObject.Find("TransitionAnchor");
         if (anchor != null)
         {
@@ -76,9 +85,10 @@ public class ChapterTransitionTrigger : MonoBehaviour
         }
 
         var col = GetComponent<Collider>();
-        if (col != null) col.enabled = true;
+        if (col != null)
+            col.enabled = true;
 
-        // Reset state
+        // Reset state when a new scene is loaded
         isPlayerInZone = false;
         isTransitioning = false;
         timer = 0f;
@@ -86,8 +96,14 @@ public class ChapterTransitionTrigger : MonoBehaviour
 
     private void Update()
     {
-        if (!isPlayerInZone || isTransitioning) return;
+        if (!isPlayerInZone || isTransitioning)
+            return;
 
+        // Do not progress if required item is missing
+        if (!HasRequiredItem())
+            return;
+
+        // Optionally require all enemies to be cleared before transitioning
         if (requireNoEnemies)
         {
             var enemies = GameObject.FindGameObjectsWithTag("Enemy");
@@ -98,6 +114,7 @@ public class ChapterTransitionTrigger : MonoBehaviour
             }
         }
 
+        // Accumulate time inside the zone
         timer += Time.deltaTime;
 
         if (timer >= requiredTime)
@@ -109,7 +126,26 @@ public class ChapterTransitionTrigger : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
+        if (!other.CompareTag("Player"))
+            return;
+
+        // Immediate check for required item and enemies before starting the timer
+        if (!HasRequiredItem())
+        {
+            var reqId = GetRequiredItemForCurrentMap();
+            string display = reqId;
+
+            if (!string.IsNullOrEmpty(reqId) && InventoryDatabase.I != null)
+            {
+                var asset = InventoryDatabase.I.GetById(reqId);
+                if (asset != null)
+                    display = string.IsNullOrEmpty(asset.displayName) ? reqId : asset.displayName;
+            }
+
+            Debug.Log($"[Transition] Cannot start transition: required item not collected: {reqId}");
+            UI_Toasts.Show($"You need to find {display} to unlock the passage");
+            return;
+        }
 
         if (requireNoEnemies)
         {
@@ -129,13 +165,17 @@ public class ChapterTransitionTrigger : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag("Player")) return;
+        if (!other.CompareTag("Player"))
+            return;
 
         isPlayerInZone = false;
         timer = 0f;
         Debug.Log("[Transition] Player left zone.");
     }
 
+    /// <summary>
+    /// Handles transitioning to the next map, optionally unlocking a skill before loading the next scene.
+    /// </summary>
     private System.Collections.IEnumerator TransitionToNextMap()
     {
         Debug.Log("[Transition] Changing scene...");
@@ -152,7 +192,7 @@ public class ChapterTransitionTrigger : MonoBehaviour
             yield break;
         }
 
-        // Unlock skill nếu có
+        // Unlock skill associated with this transition, if any
         if (!string.IsNullOrWhiteSpace(unlockSkillId))
         {
             var skillMgr = FindFirstObjectByType<PlayerSkillManager>();
@@ -166,12 +206,51 @@ public class ChapterTransitionTrigger : MonoBehaviour
             }
         }
 
+        // Advance chapter state and load next scene
         ChapterManager.Instance.AdvanceMap();
         string nextScene = ChapterManager.Instance.GetNextMapName();
 
         yield return new WaitForSeconds(1f);
 
         Debug.Log($"[Transition] Loading next map: {nextScene}");
-        SceneManager.LoadScene(nextScene);
+        if (LoadingScreen.I != null)
+            LoadingScreen.LoadScene(nextScene);
+        else
+            SceneManager.LoadScene(nextScene);
+    }
+
+    /// <summary>
+    /// Returns the required collectible id for the current map, or null if none is defined.
+    /// </summary>
+    private string GetRequiredItemForCurrentMap()
+    {
+        if (ChapterManager.Instance == null)
+            return null;
+
+        int mapIndex = ChapterManager.Instance.currentMap;
+        // Map index is 1-based. requiredItemForMaps is 0-based where element 0 == map 1.
+        int arrIndex = mapIndex - 1;
+
+        if (requiredItemForMaps == null || requiredItemForMaps.Length < 1)
+            return null;
+        if (arrIndex < 0 || arrIndex >= requiredItemForMaps.Length)
+            return null;
+
+        return requiredItemForMaps[arrIndex];
+    }
+
+    /// <summary>
+    /// Returns true if no required item is configured or the player has already collected it.
+    /// </summary>
+    private bool HasRequiredItem()
+    {
+        var req = GetRequiredItemForCurrentMap();
+        if (string.IsNullOrEmpty(req))
+            return true; // no requirement configured
+
+        if (GameSaveController.I == null)
+            return false;
+
+        return GameSaveController.I.GetCollectedCount(req) > 0;
     }
 }

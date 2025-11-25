@@ -21,14 +21,14 @@ public class HybridBossAttackStrategy : IBossAttackStrategy
             if (player != null)
             {
                 player.TakeDamage(context.stats.damage);
-                Debug.Log($"⚔ Hybrid Boss đánh gần gây {context.stats.damage} sát thương!");
+                Debug.Log($"⚔ Hybrid Boss melee attacks deal {context.stats.damage} damage!");
             }
         }
         else if (dist <= context.stats.attackRange)
         {
             GameObject proj = GameObject.Instantiate(context.projectilePrefab, context.transform.position + Vector3.up, Quaternion.identity);
             proj.GetComponent<RangedProjectile>()?.SetTarget(context.player);
-            Debug.Log("🎯 Hybrid Boss bắn tầm xa!");
+            Debug.Log("🎯 Hybrid Boss shoots long range!");
         }
     }
 }

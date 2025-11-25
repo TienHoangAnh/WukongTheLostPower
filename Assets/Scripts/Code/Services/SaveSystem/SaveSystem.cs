@@ -3,7 +3,7 @@ using UnityEngine;
 
 public static class SaveSystem
 {
-    static string PathFile => Path.Combine(Application.persistentDataPath, "save.json");
+    static string PathFile => Path.Combine(Application.persistentDataPath, "item_save.json");
 
     public static SaveData Load()
     {

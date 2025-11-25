@@ -5,7 +5,7 @@ public class RunState : IMovementState
     public void EnterState(PlayerMovementContext context)
     {
         if (context.animator != null)
-            context.animator.SetFloat("Speed", 1f); // Indicates running
+            context.animator.SetFloat("Speed", 1f);
         Debug.Log("[RunState] Entered running state.");
     }
 
@@ -22,7 +22,7 @@ public class RunState : IMovementState
         {
             if (!hasInput)
             {
-                Debug.Log("[RunState] No input detected — switching to IdleState.");
+                Debug.Log("[RunState] No player detected — switching to IdleState.");
                 context.SwitchState(new IdleState());
             }
             else

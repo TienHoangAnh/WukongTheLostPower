@@ -111,6 +111,20 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
     public void Die()
     {
         Debug.Log($"[PlayerStats] {gameObject.name} has died. Returning to Main Menu...");
+
+        // Increment death count in save runtime and persist
+        try
+        {
+            if (SaveRuntime.Current == null) SaveRuntime.Current = new SaveSlotDTO();
+            SaveRuntime.Current.deathCount = (SaveRuntime.Current.deathCount) +1;
+            // Fire-and-forget save
+            _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[PlayerStats] Failed to update/save death count: {ex.Message}");
+        }
+
         Destroy(gameObject);
         SceneManager.LoadScene("MainMenu");
     }

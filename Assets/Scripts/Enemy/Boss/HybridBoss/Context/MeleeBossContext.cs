@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
-public class HybridBossContext : MonoBehaviour, ICharacter
+public class MeleeBossContext : MonoBehaviour, ICharacter
 {
     public HybridBossAnimationManager animationManager;
     public BossStats stats; // assign ScriptableObject in inspector

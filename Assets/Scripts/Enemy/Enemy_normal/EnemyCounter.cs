@@ -51,7 +51,7 @@ public class EnemyCounter : MonoBehaviour
                 }
             }
 
-            Debug.Log($"🧮 Enemy còn lại: {remaining}");
+            //Debug.Log($"🧮 Enemy còn lại: {remaining}");
 
             if (remaining == 0)
             {
