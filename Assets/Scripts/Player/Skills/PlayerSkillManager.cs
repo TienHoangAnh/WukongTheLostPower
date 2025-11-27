@@ -62,8 +62,36 @@ public class PlayerSkillManager : MonoBehaviour
         if (SaveRuntime.Current.skillsUnlocked == null)
             SaveRuntime.Current.skillsUnlocked = new List<string>();
 
-        // Restore unlocked skills and bind them to keys 1..5
+        // Restore unlocked skills and cooldowns from save
+        ReloadFromSaveRuntime();
+    }
+
+    private void Update()
+    {
+        HandleKeyUse(1, KeyCode.Alpha1);
+        HandleKeyUse(2, KeyCode.Alpha2);
+        HandleKeyUse(3, KeyCode.Alpha3);
+        HandleKeyUse(4, KeyCode.Alpha4);
+        HandleKeyUse(5, KeyCode.Alpha5);
+    }
+
+    /// <summary>
+    /// Reload unlocked skills and cooldowns from SaveRuntime.Current into the runtime mapping.
+    /// Safe to call at runtime after SaveRuntime.Current changes (e.g. New Game resets).
+    /// </summary>
+    public void ReloadFromSaveRuntime()
+    {
+        // Ensure structures exist
+        if (SaveRuntime.Current == null)
+        {
+            SaveRuntime.Current = new SaveSlotDTO { currentMap = 1, player = new PlayerStateDTO() };
+        }
+        if (SaveRuntime.Current.skillsUnlocked == null)
+            SaveRuntime.Current.skillsUnlocked = new List<string>();
+
+        // Clear runtime mapping
         unlockedSkills.Clear();
+
         int bindIndex = 0;
         foreach (var skillId in SaveRuntime.Current.skillsUnlocked)
         {
@@ -80,15 +108,32 @@ public class PlayerSkillManager : MonoBehaviour
                 bindIndex++;
             }
         }
-    }
 
-    private void Update()
-    {
-        HandleKeyUse(1, KeyCode.Alpha1);
-        HandleKeyUse(2, KeyCode.Alpha2);
-        HandleKeyUse(3, KeyCode.Alpha3);
-        HandleKeyUse(4, KeyCode.Alpha4);
-        HandleKeyUse(5, KeyCode.Alpha5);
+        // Restore skill cooldowns (if save contains them)
+        try
+        {
+            if (SaveRuntime.Current != null && SaveRuntime.Current.skillCooldowns != null)
+            {
+                foreach (var kv in SaveRuntime.Current.skillCooldowns)
+                {
+                    var id = kv.Key;
+                    var remaining = kv.Value;
+                    if (string.IsNullOrWhiteSpace(id)) continue;
+                    if (idToSkill.TryGetValue(id, out var s))
+                    {
+                        if (s is ICooldownSkill cd)
+                        {
+                            cd.RestoreCooldown(remaining);
+                            Debug.Log($"[PlayerSkillManager] Restored cooldown for {id} = {remaining}s");
+                        }
+                    }
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[PlayerSkillManager] Failed to restore skill cooldowns: {ex.Message}");
+        }
     }
 
     /// <summary>

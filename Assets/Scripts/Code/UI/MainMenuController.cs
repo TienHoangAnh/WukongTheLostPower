@@ -16,7 +16,7 @@ public class MainMenuController : MonoBehaviour
 
     // Map index is 1-based to match your design (1..N)
     [Header("Maps (1-based)")]
-    [SerializeField] private string[] mapSceneNames = { "", "Map1", "Map2", "Map3", "Map4", "Map5" };
+    [SerializeField] private string[] mapSceneNames = {"Map1", "Map2", "Map3", "Map4", "Map5" };
 
     private bool _isContinue = false;
 
@@ -80,12 +80,11 @@ public class MainMenuController : MonoBehaviour
             // Local-first load or create
             var dto = await CloudSaveManager.TryLoadOrCreate("slotA", playerName);
 
-            // DO NOT overwrite slotName with player name
-            // Ensure playerName is set
-            if (string.IsNullOrEmpty(dto.playerName))
-                dto.playerName = playerName;
+            // Ensure the save DTO uses the entered player name for this new run
+            // Overwrite any existing playerName in the slot when creating a New Game
+            dto.playerName = playerName;
 
-            // Start from map 1 for a new game
+            // Start from map1 for a new game
             dto.currentMap = 1;
 
             // Reset hp/stamina to full for starting the run, but keep unlocked skills
@@ -93,6 +92,21 @@ public class MainMenuController : MonoBehaviour
             dto.player.hp = 100;
             dto.player.stamina = 100;
 
+            // Clear unlocked skills and cooldowns for a new game so the player starts fresh
+            dto.skillsUnlocked = new System.Collections.Generic.List<string>();
+            dto.skillCooldowns = new System.Collections.Generic.Dictionary<string, float>();
+
+            // Reset inventory / collected counts / progression fields
+            dto.inventory = new InventorySnapshot();
+            dto.collectedCounts = new System.Collections.Generic.Dictionary<string, int>();
+            dto.essencesCollected = 0;
+            dto.playTimeSeconds = 0f;
+            dto.deathCount = 0;
+            dto.bossesDefeated = new System.Collections.Generic.List<string>();
+            dto.deadEnemies = new System.Collections.Generic.List<string>();
+            dto.worldFlags = new System.Collections.Generic.Dictionary<string, bool>();
+
+            // Apply to runtime and persist
             SaveRuntime.Current = dto;
 
             // Ensure Firebase/runtime is ready and persist the new slot immediately
@@ -108,6 +122,62 @@ public class MainMenuController : MonoBehaviour
 #endif
             Debug.Log("[MainMenu] Saving new slot to local/cloud before loading Map1...");
             await CloudSaveManager.SaveNow(dto);
+            
+            // Reset local GameSaveController (collected items) if present so runtime/local save mirrors cleared DTO
+            try
+            {
+                var g = GameSaveController.I;
+                if (g != null)
+                {
+                    g.Data.collectedCounts = new System.Collections.Generic.Dictionary<string, int>();
+                    g.Data.collectedIds = new System.Collections.Generic.List<string>();
+                    g.CollectedIds.Clear();
+                    SaveSystem.Save(g.Data);
+#if UNITY_EDITOR
+                    Debug.Log("[MainMenu] Cleared local GameSaveController data for New Game.");
+#endif
+                }
+
+                // Clear runtime InventoryManager contents if present
+                var inv = InventoryManager.I;
+                if (inv != null)
+                {
+                    var all = inv.GetAll();
+                    var keys = new System.Collections.Generic.List<string>(all.Keys);
+                    foreach (var k in keys)
+                    {
+                        int count = inv.GetCount(k);
+                        if (count > 0)
+                            inv.UseItem(k, count);
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[MainMenu] Failed to clear local inventory runtime: {ex.Message}");
+            }
+
+            // If a PlayerSkillManager exists (for example attached to a persistent Player), instruct it to reload from the cleared save
+            var skillMgr = FindFirstObjectByType<PlayerSkillManager>();
+            if (skillMgr != null)
+            {
+                try { skillMgr.ReloadFromSaveRuntime(); }
+                catch { /* non-fatal: older versions may not have the method */ }
+            }
+
+            // Ensure persistent PlayerStats (if present) reflect the freshly reset HP/Stamina
+            try
+            {
+                var ps = PlayerStats.Instance;
+                if (ps != null)
+                {
+                    ps.SetStats(dto.player.hp, dto.player.stamina);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[MainMenu] Failed to reset PlayerStats for New Game: {ex.Message}");
+            }
 
             string scene = SceneNameForMap(1);
             PlayerPrefs.SetString(LastSaveKey, scene);
@@ -131,6 +201,21 @@ public class MainMenuController : MonoBehaviour
         try
         {
             var dto = await CloudSaveManager.TryLoadOrCreate("slotA", playerName);
+
+            // If remote/local slot exists but playerName doesn't match entered name, treat as not found
+            if (!string.Equals(dto.playerName, playerName, StringComparison.Ordinal))
+            {
+                Debug.LogWarning($"[MainMenu] Continue: no save found for player name '{playerName}'. Found slot playerName='{dto.playerName ?? "(null)"}'");
+                if (warningText)
+                {
+                    warningText.text = $"No save found for player '{playerName}'. Please check name or New Game.";
+                    warningText.gameObject.SetActive(true);
+                }
+                // keep name panel open for correction
+                if (namePanel) namePanel.SetActive(true);
+                if (buttonsPanel) buttonsPanel.SetActive(false);
+                return;
+            }
 
             if (string.IsNullOrEmpty(dto.playerName))
                 dto.playerName = playerName;

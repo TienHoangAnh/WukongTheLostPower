@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Threading.Tasks;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
@@ -7,9 +8,9 @@ public class MenuUIManager : MonoBehaviour
     public static MenuUIManager Instance { get; private set; }
 
     [Header("Panels")]
-    [SerializeField] private GameObject menuRoot;      // Canvas gốc của menu
-    [SerializeField] private GameObject mainPanel;     // Panel menu chính
-    [SerializeField] private GameObject uiIngameForPC; // UI ingame
+    [SerializeField] private GameObject menuRoot;      // Gốc của menu ESC (thường = UIMainMenu)
+    [SerializeField] private GameObject mainPanel;     // Panel menu chính (thường = UIMainMenu luôn)
+    [SerializeField] private GameObject uiIngameForPC; // HUD ingame
 
     [Header("Input & Pause")]
     [SerializeField] private KeyCode toggleKey = KeyCode.Escape;
@@ -19,6 +20,9 @@ public class MenuUIManager : MonoBehaviour
 
     [Header("New Game")]
     [SerializeField] private string newGameSceneName = ""; // để trống = reload scene hiện tại
+
+    [Header("Save & Quit")]
+    [SerializeField] private KeyCode saveAndQuitKey = KeyCode.F9;
 
     // ==== State ====
     public enum UiState { Ingame, MainMenu }
@@ -30,15 +34,11 @@ public class MenuUIManager : MonoBehaviour
 
     void Awake()
     {
-        // Ensure singleton and persist across scenes so ingame UI isn't lost
+        // Singleton + giữ lại MenuUIManager xuyên scene
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-
-            // If menuRoot or uiIngameForPC are assigned and belong to this scene, make them persistent too
-            if (menuRoot != null) DontDestroyOnLoad(menuRoot);
-            if (uiIngameForPC != null) DontDestroyOnLoad(uiIngameForPC);
         }
         else if (Instance != this)
         {
@@ -46,10 +46,15 @@ public class MenuUIManager : MonoBehaviour
             return;
         }
 
-        // Trạng thái mặc định
+        // Nếu designer quên gán trong Inspector thì auto tìm theo tên
+        AutoResolvePanels();
+
+        // Trạng thái mặc định khi vào ingame:
+        //  - HUD bật
+        //  - Menu ESC tắt
         SafeSet(menuRoot, false);
         SafeSet(mainPanel, false);
-        SafeSet(uiIngameForPC, true); // UI ingame hiển thị ban đầu
+        SafeSet(uiIngameForPC, true);
 
         IsMenuOpen = false;
         _state = UiState.Ingame;
@@ -57,7 +62,7 @@ public class MenuUIManager : MonoBehaviour
 
     void Start()
     {
-        // try to wire up buttons automatically so designer doesn't have to hook them in inspector
+        // Tự bắt các nút Continue/NewGame/Exit/SaveAndQuit theo tên
         TryAutoBindMenuButtons();
     }
 
@@ -67,15 +72,21 @@ public class MenuUIManager : MonoBehaviour
 
         if (Input.GetKeyDown(toggleKey))
         {
+            Debug.Log("[MenuUI] ESC pressed -> toggle menu");
             ToggleMenu();
             _nextToggleAllowedTime = Time.unscaledTime + toggleCooldown;
+        }
+
+        if (Input.GetKeyDown(saveAndQuitKey))
+        {
+            _ = SaveAndQuitAsync();
         }
     }
 
     // ===== Public API: nối vào Button/Toggle/Slider =====
     public void ToggleMenu()
     {
-        // Toggle between MainMenu and Ingame
+        // Toggle giữa Ingame <-> MainMenu (pause menu)
         ApplyUiState(_state == UiState.MainMenu ? UiState.Ingame : UiState.MainMenu);
     }
 
@@ -88,9 +99,15 @@ public class MenuUIManager : MonoBehaviour
         // Đảm bảo rời trạng thái pause
         if (pauseAffectsTimeScale) Time.timeScale = 1f;
         IsMenuOpen = false;
+
 #if UNITY_STANDALONE || UNITY_EDITOR
-        if (manageCursor) { Cursor.visible = false; Cursor.lockState = CursorLockMode.Locked; }
+        if (manageCursor)
+        {
+            Cursor.visible = false;
+            Cursor.lockState = CursorLockMode.Locked;
+        }
 #endif
+
         SafeSet(uiIngameForPC, false);
         SafeSet(menuRoot, false);
         SafeSet(mainPanel, false);
@@ -102,19 +119,60 @@ public class MenuUIManager : MonoBehaviour
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
-    // ===== Core: áp state độc quyền3 UI =====
+    /// <summary>
+    /// Persist SaveRuntime.Current to local and cloud, persist local item save, then return to MainMenu scene.
+    /// </summary>
+    public async Task SaveAndQuitAsync()
+    {
+        Debug.Log("[MenuUI] SaveAndQuit triggered.");
+
+        // Ensure runtime exists
+        if (SaveRuntime.Current == null) SaveRuntime.Current = new SaveSlotDTO();
+
+        // Persist runtime to local and cloud
+        try
+        {
+            await CloudSaveManager.SaveNow(SaveRuntime.Current);
+            Debug.Log("[MenuUI] SaveRuntime saved (local + cloud attempted).");
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[MenuUI] CloudSaveManager.SaveNow failed: {ex.Message}");
+        }
+
+        // Persist local item save (GameSaveController / SaveSystem)
+        try
+        {
+            if (GameSaveController.I != null && GameSaveController.I.Data != null)
+            {
+                SaveSystem.Save(GameSaveController.I.Data);
+                Debug.Log("[MenuUI] Local item save persisted.");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[MenuUI] Failed to persist local item save: {ex.Message}");
+        }
+
+        // Finally load main menu scene
+        if (LoadingScreen.I != null)
+            LoadingScreen.LoadScene("MainMenu");
+        else
+            SceneManager.LoadScene("MainMenu");
+    }
+
+    // ===== Core: áp state độc quyền UI =====
     private void ApplyUiState(UiState next)
     {
-        // Nếu chuyển sang trạng thái giống hiện tại thì vẫn cho chạy để đồng bộ UI
         _state = next;
         IsMenuOpen = (next != UiState.Ingame);
 
-        //1) Hiển thị độc quyền
+        // 1) Hiển thị độc quyền
         SafeSet(uiIngameForPC, next == UiState.Ingame);
         SafeSet(mainPanel, next == UiState.MainMenu);
-        SafeSet(menuRoot, next != UiState.Ingame);
+        SafeSet(menuRoot, next == UiState.MainMenu); // menuRoot = mainPanel trong case ingame
 
-        //2) TimeScale
+        // 2) TimeScale
         if (pauseAffectsTimeScale)
         {
             if (next == UiState.Ingame)
@@ -128,7 +186,7 @@ public class MenuUIManager : MonoBehaviour
             }
         }
 
-        //3) Cursor (desktop/editor)
+        // 3) Cursor (desktop/editor)
 #if UNITY_STANDALONE || UNITY_EDITOR
         if (manageCursor)
         {
@@ -142,7 +200,8 @@ public class MenuUIManager : MonoBehaviour
     // ===== Utils =====
     private void SafeSet(GameObject go, bool active)
     {
-        if (go && go.activeSelf != active) go.SetActive(active);
+        if (go && go.activeSelf != active)
+            go.SetActive(active);
     }
 
     private void OnDisable()
@@ -157,14 +216,54 @@ public class MenuUIManager : MonoBehaviour
             Time.timeScale = (_prevTimeScale <= 0f) ? 1f : _prevTimeScale;
     }
 
-    // Try to auto-bind common menu buttons by name so UI works without manual wiring in Inspector
+    /// <summary>
+    /// Tự gán menuRoot, mainPanel, uiIngameForPC nếu quên kéo trong Inspector.
+    /// </summary>
+    private void AutoResolvePanels()
+    {
+        if (menuRoot == null)
+        {
+            var go = GameObject.Find("UIMainMenu");
+            if (go != null)
+            {
+                menuRoot = go;
+                Debug.Log("[MenuUI] Auto-assigned menuRoot = UIMainMenu");
+            }
+        }
+
+        if (mainPanel == null)
+        {
+            mainPanel = menuRoot;
+            if (mainPanel != null)
+                Debug.Log("[MenuUI] Auto-assigned mainPanel = menuRoot");
+        }
+
+        if (uiIngameForPC == null)
+        {
+            var go = GameObject.Find("UIIngameForPC");
+            if (go != null)
+            {
+                uiIngameForPC = go;
+                Debug.Log("[MenuUI] Auto-assigned uiIngameForPC = UIIngameForPC");
+            }
+        }
+
+        if (menuRoot == null || mainPanel == null || uiIngameForPC == null)
+        {
+            Debug.LogWarning("[MenuUI] Some panel references are still null. Please assign menuRoot, mainPanel, uiIngameForPC in Inspector.");
+        }
+    }
+
+    // Tự bind các nút Continue/NewGame/Exit/SaveAndQuit theo tên
     private void TryAutoBindMenuButtons()
     {
         if (mainPanel == null) return;
+
         var buttons = mainPanel.GetComponentsInChildren<Button>(true);
         foreach (var b in buttons)
         {
             var name = b.gameObject.name.ToLower();
+
             if (name.Contains("continue") || name.Contains("resume"))
             {
                 b.onClick.AddListener(ContinueButton);
@@ -177,7 +276,10 @@ public class MenuUIManager : MonoBehaviour
             {
                 b.onClick.AddListener(() => Application.Quit());
             }
+            else if (name.Contains("save") || name.Contains("saveandquit"))
+            {
+                b.onClick.AddListener(() => _ = SaveAndQuitAsync());
+            }
         }
-
     }
 }

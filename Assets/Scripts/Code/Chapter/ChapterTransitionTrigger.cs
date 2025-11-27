@@ -72,6 +72,24 @@ public class ChapterTransitionTrigger : MonoBehaviour
         {
             if (t == this)
                 continue;
+
+            // Copy per-scene configuration from the scene's trigger into the persistent instance
+            // so the persistent object reflects the new scene's required items and settings.
+            try
+            {
+                this.requiredTime = t.requiredTime;
+                this.requireNoEnemies = t.requireNoEnemies;
+                this.unlockSkillId = t.unlockSkillId;
+                this.persistAcrossScenes = t.persistAcrossScenes;
+
+                if (t.requiredItemForMaps != null && t.requiredItemForMaps.Length > 0)
+                    this.requiredItemForMaps = (string[])t.requiredItemForMaps.Clone();
+            }
+            catch
+            {
+                // Ignore any errors during copy; continue to destroy duplicate.
+            }
+
             Destroy(t.gameObject);
         }
 
@@ -222,7 +240,7 @@ public class ChapterTransitionTrigger : MonoBehaviour
     /// <summary>
     /// Returns the required collectible id for the current map, or null if none is defined.
     /// </summary>
-    private string GetRequiredItemForCurrentMap()
+    public string GetRequiredItemForCurrentMap()
     {
         if (ChapterManager.Instance == null)
             return null;

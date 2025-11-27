@@ -63,7 +63,6 @@ public class PlayerMovementContext : MonoBehaviour
                 {
                     hp = 100,
                     stamina = 100,
-                    flask = 3,
                     pos = new Vector3DTO(transform.position),
                     rotY = transform.eulerAngles.y
                 }

@@ -75,14 +75,6 @@ public class PlayerStateDTO
     [FirestoreProperty]
 #endif
     public Vector3DTO pos { get; set; } = new Vector3DTO();
-
-    /// <summary>
-    /// Legacy flask counter, kept for backward compatibility.
-    /// </summary>
-#if FIREBASE_ENABLED
-    [FirestoreProperty]
-#endif
-    public int flask { get; set; } = 0;
 }
 
 // ========================= Inventory Snapshot =========================
@@ -171,12 +163,6 @@ public class SaveSlotDTO
     [FirestoreProperty]
 #endif
     public List<string> skillsUnlocked { get; set; } = new List<string>();
-
-    // Add learnedSkills to allow mapping older Firestore field
-#if FIREBASE_ENABLED
-    [FirestoreProperty]
-#endif
-    public List<string> learnedSkills { get; set; } = new List<string>();
 
     // -------- Legacy / compatibility fields --------
 

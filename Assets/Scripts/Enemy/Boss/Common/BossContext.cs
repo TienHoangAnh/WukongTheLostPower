@@ -73,7 +73,22 @@ public class BossContext : MonoBehaviour, ICharacter
     void Update()
     {
         attackTimer += Time.deltaTime;
-        currentState.UpdateState(this);
+
+        if (currentState == null)
+        {
+            Debug.LogWarning("[BossContext] currentState is null in Update(). Skipping state update.");
+            return;
+        }
+
+        try
+        {
+            currentState.UpdateState(this);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogError($"[BossContext] Exception in state UpdateState: {ex}\nDisabling BossContext to avoid repeated errors.");
+            enabled = false;
+        }
     }
 
     public void SwitchState(IBossState newState)

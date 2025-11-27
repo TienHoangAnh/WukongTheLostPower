@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class PlayerCombat : MonoBehaviour
 {
@@ -37,6 +38,9 @@ public class PlayerCombat : MonoBehaviour
     private float[] comboCooldowns;
     private Animator animator;
     private PlayerStats stats;
+
+    // Track the absolute time when ranged cooldown will end (Time.time). -999 means none.
+    private float _rangedCooldownEndTime = -999f;
 
     void Start()
     {
@@ -165,9 +169,15 @@ public class PlayerCombat : MonoBehaviour
 
         behaviorTracker?.RecordRangedAttack();
 
+        // set cooldown state and track absolute end time
         rangedOnCooldown = true;
+        _rangedCooldownEndTime = Time.time + rangedCooldown;
+        Debug.Log($"[PlayerCombat] Ranged started cooldown. duration={rangedCooldown:F2}s, endsAt={_rangedCooldownEndTime:F2}, now={Time.time:F2}");
+
         yield return new WaitForSeconds(rangedCooldown);
         rangedOnCooldown = false;
+        _rangedCooldownEndTime = -999f;
+        Debug.Log("[PlayerCombat] Ranged cooldown ended.");
     }
 
     // ================== COMBO (Q/E/R) ==================
@@ -180,7 +190,7 @@ public class PlayerCombat : MonoBehaviour
 
         if (Time.time < comboCooldowns[index])
         {
-            Debug.Log($"[Combat] Skill {step.skillName} is still on cooldown!");
+            Debug.Log($"[Combat] Skill {step.skillName} is still on cooldown! " + Time.time);
             return;
         }
 
@@ -206,6 +216,7 @@ public class PlayerCombat : MonoBehaviour
         Debug.Log($"[Combat] Used {step.skillName} → {damage} dmg to {enemy.gameObject.name}");
 
         comboCooldowns[index] = Time.time + step.cooldown;
+        Debug.Log($"[PlayerCombat] Combo skill '{step.skillName}' started cooldown. index={index}, duration={step.cooldown:F2}s, endsAt={comboCooldowns[index]:F2}, now={Time.time:F2}");
     }
 
     EnemyStats FindNearestEnemyInRange(float maxRange)
@@ -234,5 +245,44 @@ public class PlayerCombat : MonoBehaviour
 
         Gizmos.color = new Color(0.2f, 0.8f, 1f, 0.35f);
         Gizmos.DrawWireSphere(transform.position, attackDistance);
+    }
+
+    // Public accessors to expose cooldown remaining values for UI
+    public float GetComboCooldownRemaining(int index)
+    {
+        if (comboCooldowns == null || index < 0 || index >= comboCooldowns.Length) return 0f;
+        float rem = comboCooldowns[index] - Time.time;
+        return rem > 0f ? rem : 0f;
+    }
+
+    public float GetRangedCooldownRemaining()
+    {
+        if (_rangedCooldownEndTime < 0f) return 0f;
+        float rem = _rangedCooldownEndTime - Time.time;
+        return rem > 0f ? rem : 0f;
+    }
+
+    public float GetComboMaxCooldown(int index)
+    {
+        if (comboData == null || comboData.comboSteps == null || index < 0 || index >= comboData.comboSteps.Count) return 0f;
+        return comboData.comboSteps[index].cooldown;
+    }
+    public float GetRangedMaxCooldown() => rangedCooldown;
+
+    public bool IsRangedOnCooldown() => rangedOnCooldown;
+}
+
+public class SomeOtherClass : MonoBehaviour
+{
+    public PlayerCombat playerCombat;
+    public Text qText;
+    public Image qFillImage;
+
+    void Update()
+    {
+        float rem = playerCombat.GetComboCooldownRemaining(0);
+        float max = playerCombat.GetComboMaxCooldown(0);
+        qText.text = rem > 0 ? rem.ToString("F1") + "s" : "";
+        if (qFillImage != null) qFillImage.fillAmount = max > 0 ? rem / max : 0f;
     }
 }

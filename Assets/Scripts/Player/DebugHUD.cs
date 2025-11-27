@@ -1,6 +1,7 @@
 ﻿using System.Text;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using System.Collections.Generic;
 
 public class DebugHUD : MonoBehaviour
 {
@@ -13,7 +14,7 @@ public class DebugHUD : MonoBehaviour
     private float _lastPickedTime;
 
 
-    [SerializeField] private float pickedMsgDuration = 5f;
+    [SerializeField] private float pickedMsgDuration =5f;
 
     // Expose item ids so inspector can change which ids represent HP/Stamina items
     [Header("Quick item ids for debug display")] 
@@ -22,23 +23,154 @@ public class DebugHUD : MonoBehaviour
 
     // Specific collectible to show collected status (e.g. ManhKim)
     [Header("Single collectible status")]
-    [SerializeField] private string statusCollectibleId = "ManhKim";
+    // statusCollectibleId is optional; per-map required item will be used if available
+    [SerializeField] private string statusCollectibleId = "";
+
+    // runtime copy of the collectible id to show (updated on scene load)
+    private string _runtimeStatusCollectibleId;
+
+    // Message log (timed messages)
+    private struct Msg { public string text; public float expiry; public Msg(string t, float e) { text = t; expiry = e; } }
+    private readonly List<Msg> _messages = new List<Msg>();
+
+    // Tracking for state changes
+    private int _prevEnemyCount = -1;
+    private int _prevCollectedHp = -1;
+    private int _prevCollectedSt = -1;
+    private int _prevCollectedRequired = -1;
+    private int _prevSkillsCount = -1;
+    private float _prevPlayerHp = -1f;
+    private int _prevDeathCount = -1;
+
+    [Header("HUD Settings")]
+    [Tooltip("How long general messages stay in the debug box (seconds)")]
+    [SerializeField] private float generalMsgDuration =5f;
+
+    // Playtime tracking
+    private float _playTimeSeconds =0f; // mirrors SaveRuntime.Current.playTimeSeconds
+    private bool _isTiming = false;
+    [Tooltip("How often (seconds) to persist playtime to save/cloud")]
+    [SerializeField] private float playtimeSaveInterval =5f;
+    private float _playtimeSaveTimer =0f;
 
     void Start()
     {
-        float w = 500f;
-        float h = 200f;
-        _rect = new Rect(Screen.width - w - 10, 50, w, h);
+        float w =500f;
+        float h =200f;
+        _rect = new Rect(Screen.width - w -10,50, w, h);
+
+        // initialize runtime id from current scene's trigger if present
+        RefreshStatusCollectibleForCurrentMap();
+
+        // initialize previous tracking values
+        _prevEnemyCount = CountEnemies();
+        _prevCollectedHp = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(hpItemId) :0;
+        _prevCollectedSt = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(staminaItemId) :0;
+        _prevSkillsCount = SaveRuntime.Current != null && SaveRuntime.Current.skillsUnlocked != null ? SaveRuntime.Current.skillsUnlocked.Count :0;
+        _prevPlayerHp = PlayerStats.Instance != null ? PlayerStats.Instance.currentHealth : -1f;
+
+        // death count
+        _prevDeathCount = SaveRuntime.Current != null ? SaveRuntime.Current.deathCount :0;
+
+        // playtime init from save runtime if present
+        _playTimeSeconds = SaveRuntime.Current != null ? SaveRuntime.Current.playTimeSeconds :0f;
+
+        // start timing automatically if current scene is Map1 (start of a run)
+        var active = SceneManager.GetActiveScene();
+        if (IsMap1Scene(active))
+        {
+            StartPlaytime();
+            AddMessage($"Playtime tracking started. Current: {FormatTime(_playTimeSeconds)}",3f);
+        }
+
+        // also seed a status message
+        AddMessage($"Debug HUD initialized. Enemies: {_prevEnemyCount}",3f);
     }
 
     void OnEnable()
     {
         CollectiblePickup.OnPicked += HandlePicked;
+        SceneManager.sceneLoaded += OnSceneLoaded;
     }
 
     void OnDisable()
     {
         CollectiblePickup.OnPicked -= HandlePicked;
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // update runtime status collectible when a new scene loads so persistent System objects
+        // reflect the new map's required item
+        RefreshStatusCollectibleForCurrentMap();
+
+        // refresh tracked state after scene change
+        int ec = CountEnemies();
+        if (ec != _prevEnemyCount)
+        {
+            _prevEnemyCount = ec;
+            AddMessage($"Scene loaded. Enemy count: {ec}",3f);
+        }
+
+        _prevCollectedHp = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(hpItemId) :0;
+        _prevCollectedSt = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(staminaItemId) :0;
+        _prevPlayerHp = PlayerStats.Instance != null ? PlayerStats.Instance.currentHealth : -1f;
+
+        // If Map1 loaded, start/resume playtime tracking
+        if (IsMap1Scene(scene))
+        {
+            StartPlaytime();
+            AddMessage($"Entered Map1. Playtime tracking active.",3f);
+        }
+        else
+        {
+            // stop timing when leaving Map1 (optional)
+            StopAndPersistPlaytime();
+        }
+    }
+
+    private bool IsMap1Scene(Scene s)
+    {
+        if (!s.IsValid()) return false;
+        // Basic check by name; adjust if your Map1 scene has a different name
+        return string.Equals(s.name, "Map1", System.StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void StartPlaytime()
+    {
+        _isTiming = true;
+        _playtimeSaveTimer =0f;
+        // ensure SaveRuntime has initialised structure
+        SaveRuntime.EnsureInitialized();
+        if (SaveRuntime.Current.playTimeSeconds <=0f)
+            SaveRuntime.Current.playTimeSeconds = _playTimeSeconds;
+    }
+
+    private void StopAndPersistPlaytime()
+    {
+        if (!_isTiming) return;
+        _isTiming = false;
+        SaveRuntime.EnsureInitialized();
+        SaveRuntime.Current.playTimeSeconds = _playTimeSeconds;
+        _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+    }
+
+    private void RefreshStatusCollectibleForCurrentMap()
+    {
+        var trigger = ChapterTransitionTrigger.Instance;
+        if (trigger != null)
+        {
+            var req = trigger.GetRequiredItemForCurrentMap();
+            if (!string.IsNullOrEmpty(req))
+            {
+                _runtimeStatusCollectibleId = req;
+                return;
+            }
+        }
+
+        // fallback to inspector value
+        _runtimeStatusCollectibleId = statusCollectibleId;
     }
 
     private void HandlePicked(string displayName, string id)
@@ -47,13 +179,40 @@ public class DebugHUD : MonoBehaviour
         _lastPickedId = id;
         _lastPickedTime = Time.time;
 
-        _lastPickedAmount = 1;
+        _lastPickedAmount =1;
 
         _lastPickedTotal = (GameSaveController.I != null)
             ? GameSaveController.I.GetCollectedCount(id)
             : 0;
-    }
 
+        AddMessage($"Picked up: {displayName} (+{_lastPickedAmount}, total {_lastPickedTotal})", pickedMsgDuration);
+
+        // If this is a required item for the current map, highlight it
+        if (!string.IsNullOrEmpty(_runtimeStatusCollectibleId) && id == _runtimeStatusCollectibleId)
+        {
+            AddMessage($"You found the required item for this map: {displayName}", generalMsgDuration +2f);
+        }
+
+        // Update tracked counts for HP/stamina quick-items
+        if (id == hpItemId)
+        {
+            int now = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(hpItemId) :0;
+            if (now != _prevCollectedHp)
+            {
+                _prevCollectedHp = now;
+                AddMessage($"HP item ({hpItemId}) count: x{now}", generalMsgDuration);
+            }
+        }
+        if (id == staminaItemId)
+        {
+            int now = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(staminaItemId) :0;
+            if (now != _prevCollectedSt)
+            {
+                _prevCollectedSt = now;
+                AddMessage($"Stamina item ({staminaItemId}) count: x{now}", generalMsgDuration);
+            }
+        }
+    }
 
     void Update()
     {
@@ -61,12 +220,171 @@ public class DebugHUD : MonoBehaviour
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         if (Input.GetKeyDown(KeyCode.F9))
             GameSaveController.I?.WipeAndReload();
+
+        // Playtime ticking
+        if (_isTiming)
+        {
+            _playTimeSeconds += Time.deltaTime;
+            _playtimeSaveTimer += Time.deltaTime;
+            // persist periodically
+            if (_playtimeSaveTimer >= playtimeSaveInterval)
+            {
+                _playtimeSaveTimer =0f;
+                SaveRuntime.EnsureInitialized();
+                SaveRuntime.Current.playTimeSeconds = _playTimeSeconds;
+                _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+            }
+        }
+
+        // Poll enemy count changes
+        int enemies = CountEnemies();
+        if (_prevEnemyCount >=0 && enemies ==0 && _prevEnemyCount >0)
+        {
+            AddMessage("All enemies defeated! Gate unlocked.", generalMsgDuration +2f);
+        }
+        _prevEnemyCount = enemies;
+
+        // Poll skill unlocks via SaveRuntime changes
+        int skillsNow = SaveRuntime.Current != null && SaveRuntime.Current.skillsUnlocked != null ? SaveRuntime.Current.skillsUnlocked.Count :0;
+        if (skillsNow > _prevSkillsCount)
+        {
+            // find newly unlocked ids
+            if (_prevSkillsCount >=0 && SaveRuntime.Current != null && SaveRuntime.Current.skillsUnlocked != null)
+            {
+                for (int i =0; i < SaveRuntime.Current.skillsUnlocked.Count; i++)
+                {
+                    // If index beyond previous count, treat as new
+                    if (i >= _prevSkillsCount)
+                    {
+                        string sid = SaveRuntime.Current.skillsUnlocked[i];
+                        AddMessage($"Skill unlocked: {sid}", generalMsgDuration +2f);
+                    }
+                }
+            }
+        }
+        _prevSkillsCount = skillsNow;
+
+        // Low HP warning
+        var ps = PlayerStats.Instance;
+        if (ps != null)
+        {
+            float hp = ps.currentHealth;
+            if (_prevPlayerHp >=0 && hp <20f && _prevPlayerHp >=20f)
+            {
+                AddMessage("Warning: HP below20%! Use an HP item (quick-slot) to recover.", generalMsgDuration +3f);
+            }
+            _prevPlayerHp = hp;
+        }
+
+        // Detect death count changes (PlayerStats.Die updates SaveRuntime.Current.deathCount)
+        int nowDeaths = SaveRuntime.Current != null ? SaveRuntime.Current.deathCount :0;
+        if (_prevDeathCount >=0 && nowDeaths > _prevDeathCount)
+        {
+            AddMessage($"You died ({nowDeaths} total).", generalMsgDuration +2f);
+        }
+        _prevDeathCount = nowDeaths;
+
+        // Transition readiness: show small status message when conditions met/not met
+        var trigger = ChapterTransitionTrigger.Instance;
+        if (trigger != null)
+        {
+            bool hasRequired = false;
+            var req = trigger.GetRequiredItemForCurrentMap();
+            if (string.IsNullOrEmpty(req)) hasRequired = true;
+            else hasRequired = (GameSaveController.I != null && GameSaveController.I.GetCollectedCount(req) >0);
+
+            bool enemiesCleared = CountEnemies() ==0;
+
+            if (hasRequired && enemiesCleared)
+            {
+                // ready
+                int nowReady =1;
+                if (_prevCollectedRequired != nowReady)
+                {
+                    AddMessage("Passage ready: You can enter the portal to proceed.", generalMsgDuration +2f);
+                }
+                _prevCollectedRequired = nowReady;
+            }
+            else
+            {
+                int nowReady =0;
+                if (_prevCollectedRequired != nowReady)
+                {
+                    // describe why locked
+                    if (!hasRequired)
+                    {
+                        string display = req ?? "required item";
+                        if (InventoryDatabase.I != null && !string.IsNullOrEmpty(req))
+                        {
+                            var a = InventoryDatabase.I.GetById(req);
+                            if (a != null && !string.IsNullOrEmpty(a.displayName)) display = a.displayName;
+                        }
+                        AddMessage($"Passage locked: find {display}.", generalMsgDuration +2f);
+                    }
+                    else if (!enemiesCleared)
+                    {
+                        AddMessage("Passage locked: clear all enemies first.", generalMsgDuration +2f);
+                    }
+                }
+                _prevCollectedRequired = nowReady;
+            }
+        }
+
+        // Cleanup expired messages
+        float nowt = Time.time;
+        for (int i = _messages.Count -1; i >=0; i--)
+        {
+            if (_messages[i].expiry >0f && _messages[i].expiry < nowt)
+                _messages.RemoveAt(i);
+        }
     }
+
+    private int CountEnemies()
+    {
+        int remaining = GameObject.FindGameObjectsWithTag("Enemy").Length;
+        if (remaining ==0)
+        {
+            var byType = FindObjectsOfType<EnemyStats>();
+            if (byType != null)
+            {
+                int alive =0;
+                foreach (var e in byType)
+                {
+                    if (e != null && e.gameObject.activeInHierarchy) alive++;
+                }
+                remaining = alive;
+            }
+        }
+        return remaining;
+    }
+
+    private void AddMessage(string text, float duration)
+    {
+        float expiry = duration >0 ? Time.time + duration :0f;
+        _messages.Add(new Msg(text, expiry));
+        Debug.Log("[DebugHUD] " + text);
+    }
+
+    private static string FormatTime(float seconds)
+    {
+        int s = Mathf.FloorToInt(seconds);
+        int mins = s /60;
+        int secs = s %60;
+        return string.Format("{0:00}:{1:00}", mins, secs);
+    }
+
 
     void OnGUI()
     {
         GUILayout.BeginArea(_rect, GUI.skin.box);
-        GUILayout.Label("<b>Main Task</b>");
+        GUILayout.Label($"<b>Playtime: {FormatTime(_playTimeSeconds)}</b>" + "<b>               Main Task</b>");
+
+        foreach (var m in _messages)
+        {
+            GUILayout.Label(m.text);
+        }
+
+        GUILayout.Space(2);
 
         if (!string.IsNullOrEmpty(_lastPickedName))
         {
@@ -85,24 +403,37 @@ public class DebugHUD : MonoBehaviour
         GUILayout.Label("You need to destroy all enemies to find power pieces.");
 
         // Show HP / Stamina item counts using configured ids
-        int hpCount = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(hpItemId) : 0;
-        int stCount = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(staminaItemId) : 0;
+        int hpCount = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(hpItemId) :0;
+        int stCount = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(staminaItemId) :0;
         GUILayout.Label($"HP ({hpItemId}): x{hpCount}");
         GUILayout.Label($"Stamina ({staminaItemId}): x{stCount}");
 
-        // Show single collectible status
-        if (!string.IsNullOrEmpty(statusCollectibleId))
+        // Show playtime and death count
+        int deaths = SaveRuntime.Current != null ? SaveRuntime.Current.deathCount :0;
+        GUILayout.Label($"Deaths: {deaths}");
+
+        // Show single collectible status: prefer per-map required item from ChapterTransitionTrigger
+        var trigger = ChapterTransitionTrigger.Instance;
+        string reqId = null;
+        if (trigger != null)
+            reqId = trigger.GetRequiredItemForCurrentMap();
+
+        // if trigger doesn't provide a per-map id, use the runtime value which was refreshed on scene load
+        if (string.IsNullOrEmpty(reqId))
+            reqId = _runtimeStatusCollectibleId;
+
+        if (!string.IsNullOrEmpty(reqId))
         {
-            bool has = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(statusCollectibleId) > 0 : false;
-            GUILayout.Label($"{statusCollectibleId}: {(has ? "Have had" : "Not yet")}");
+            bool has = GameSaveController.I != null ? GameSaveController.I.GetCollectedCount(reqId) >0 : false;
+            var display = reqId;
+            if (InventoryDatabase.I != null)
+            {
+                var asset = InventoryDatabase.I.GetById(reqId);
+                if (asset != null && !string.IsNullOrEmpty(asset.displayName)) display = asset.displayName;
+            }
+            GUILayout.Label($"{display}: {(has ? "Have had" : "Not yet")}");
         }
 
-        //if (GameSaveController.I != null) { 
-        //    var sb = new StringBuilder(); 
-        //    sb.AppendLine($"Collected: {GameSaveController.I.CollectedIds.Count}"); 
-        //    foreach (var id in GameSaveController.I.CollectedIds) sb.AppendLine($" - {id}"); 
-        //    GUILayout.Label(sb.ToString()); 
-        //} 
         GUILayout.Label("F9 = Wipe Save");
         GUILayout.EndArea();
     }

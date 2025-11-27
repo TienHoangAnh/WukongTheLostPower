@@ -2,7 +2,7 @@
 using System.Collections;
 
 [CreateAssetMenu(menuName = "Skills/StoneGuardSkill")]
-public class StoneGuardSkill : ScriptableObject, ISkill
+public class StoneGuardSkill : ScriptableObject, ISkill, ICooldownSkill
 {
     public float duration = 5f;
     public float damageReduction = 0.4f; // 40%
@@ -20,6 +20,22 @@ public class StoneGuardSkill : ScriptableObject, ISkill
         context.StartCoroutine(GuardRoutine(context.GetComponent<PlayerStats>()));
         _lastUsedTime = Time.time;
         Debug.Log("🪨 Stone Guard kích hoạt! Giảm sát thương 40%");
+
+        // Persist cooldown remaining to save runtime and cloud (same approach as InfernoBurst)
+        try
+        {
+            if (SaveRuntime.Current != null)
+            {
+                float remain = Mathf.Max(0f, (_lastUsedTime + cooldown) - Time.time);
+                SaveRuntime.Current.skillCooldowns ??= new System.Collections.Generic.Dictionary<string, float>();
+                SaveRuntime.Current.skillCooldowns["stone_guard"] = remain;
+                _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[StoneGuardSkill] Failed to save cooldown: {ex.Message}");
+        }
     }
 
     private IEnumerator GuardRoutine(PlayerStats stats)
@@ -31,4 +47,10 @@ public class StoneGuardSkill : ScriptableObject, ISkill
     }
 
     public string GetName() => "Stone Guard";
+
+    public void RestoreCooldown(float remainingSeconds)
+    {
+        // restore _lastUsedTime so that remaining matches saved value
+        _lastUsedTime = Time.time - (cooldown - remainingSeconds);
+    }
 }

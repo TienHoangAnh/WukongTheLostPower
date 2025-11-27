@@ -26,7 +26,6 @@ public static class SaveCapture
             {
                 hp = Mathf.RoundToInt(playerStats.currentHealth),
                 stamina = Mathf.RoundToInt(playerStats.currentStamina),
-                flask = inventory?.GetCount("flask") ?? 0,
                 rotY = playerStats.transform.eulerAngles.y,
                 pos = new Vector3DTO(playerStats.transform.position)
             };

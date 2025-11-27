@@ -30,6 +30,16 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
         }
     }
 
+    void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
     void Start()
     {
         // Initialize current values only once (prevent reset when scene reloads)
@@ -41,6 +51,46 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
             {
                 currentHealth = Mathf.Clamp(SaveRuntime.Current.player.hp, 0, (int)maxHealth);
                 currentStamina = Mathf.Clamp(SaveRuntime.Current.player.stamina, 0, (int)maxStamina);
+
+                // Restore position/rotation if available
+                if (SaveRuntime.Current.player.pos != null)
+                {
+                    try
+                    {
+                        var v = SaveRuntime.Current.player.pos.ToVector3();
+                        transform.position = v;
+                        transform.rotation = Quaternion.Euler(0f, SaveRuntime.Current.player.rotY, 0f);
+                    }
+                    catch { }
+                }
+
+                // If the loaded save has HP ==0, treat this as an accidental dead-state save and restore to full HP
+                if (currentHealth <=0f)
+                {
+                    Debug.LogWarning("[PlayerStats] Loaded save contains HP=0 — restoring to maxHealth to avoid starting dead.");
+                    currentHealth = maxHealth;
+                    // update runtime save so subsequent continues don't re-load HP=0
+                    UpdateSaveRuntime();
+                    try
+                    {
+                        _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+                    }
+                    catch { }
+                }
+
+                // If loaded stamina is zero or negative, restore to max stamina as well so player can act immediately
+                if (currentStamina <=0f)
+                {
+                    Debug.LogWarning("[PlayerStats] Loaded save contains Stamina=0 — restoring to maxStamina to avoid starting exhausted.");
+                    currentStamina = maxStamina;
+                    // update runtime save so subsequent continues don't re-load stamina=0
+                    UpdateSaveRuntime();
+                    try
+                    {
+                        _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+                    }
+                    catch { }
+                }
             }
             else
             {
@@ -58,6 +108,29 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
 
         _moveCtx = GetComponent<PlayerMovementContext>()
                    ?? FindFirstObjectByType<PlayerMovementContext>();
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Reposition persistent player to scene anchor if present
+        // Prefer PlayerAnchor.Current (scene placed), otherwise find GameObject named "TransitionAnchor"
+        if (PlayerAnchor.Current != null)
+        {
+            transform.position = PlayerAnchor.Current.position;
+            transform.rotation = PlayerAnchor.Current.rotation;
+        }
+        else
+        {
+            var anchor = GameObject.Find("TransitionAnchor");
+            if (anchor != null)
+            {
+                transform.position = anchor.transform.position;
+                transform.rotation = anchor.transform.rotation;
+            }
+        }
+
+        // After reposition, update runtime pos so UI/Save reflect correct location
+        UpdateSaveRuntime();
     }
 
     public void TakeDamage(float amount)
@@ -144,5 +217,7 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
 
         SaveRuntime.Current.player.hp = Mathf.RoundToInt(currentHealth);
         SaveRuntime.Current.player.stamina = Mathf.RoundToInt(currentStamina);
+        SaveRuntime.Current.player.pos = new Vector3DTO(transform.position);
+        SaveRuntime.Current.player.rotY = transform.eulerAngles.y;
     }
 }

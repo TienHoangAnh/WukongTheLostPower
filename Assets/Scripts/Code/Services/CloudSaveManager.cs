@@ -60,6 +60,9 @@ public static class CloudSaveManager
     {
         if (dto == null) return;
 
+        // Ensure inventory snapshot and collected counts reflect local GameSaveController before saving
+        SyncInventoryFromLocal(dto);
+
         TouchTimestamp(dto);
         LocalCache.Write(CurrentSlotId, dto);
 
@@ -88,11 +91,9 @@ public static class CloudSaveManager
 
     private static SaveSlotDTO NewDefault(string slotId, string playerName) => new SaveSlotDTO
     {
-        // slotName phải là id của slot, không phải tên người chơi
         slotName = string.IsNullOrWhiteSpace(slotId) ? "slotA" : slotId,
         playerName = string.IsNullOrWhiteSpace(playerName) ? "Player" : playerName.Trim(),
 
-        // ⚠ dùng model mới
         currentMap = 1,
         essencesCollected = 0,
         playTimeSeconds = 0f,
@@ -101,7 +102,6 @@ public static class CloudSaveManager
         {
             hp = 100,
             stamina = 100,
-            flask = 3,
             pos = new Vector3DTO(Vector3.zero),
             rotY = 0
         },
@@ -161,4 +161,37 @@ public static class CloudSaveManager
         }
     }
 #endif
+
+    // Copies local GameSaveController collected counts into the save DTO's inventory and collectedCounts.
+    // This ensures consumable/item counts (holy_water, elixir, etc.) are persisted when saving.
+    private static void SyncInventoryFromLocal(SaveSlotDTO dto)
+    {
+        if (dto == null) return;
+
+        try
+        {
+            var g = GameSaveController.I;
+            if (g != null)
+            {
+                // copy raw collectedCounts into DTO
+                if (g.CollectedCounts != null)
+                {
+                    dto.collectedCounts = new System.Collections.Generic.Dictionary<string, int>(g.CollectedCounts);
+                }
+
+                // also map common quick-items into inventory snapshot if present
+                if (dto.inventory == null) dto.inventory = new InventorySnapshot();
+
+                dto.inventory.elixir = g.GetCollectedCount("elixir");
+                dto.inventory.holy_water = g.GetCollectedCount("holy_water");
+                dto.inventory.natural_energy = g.GetCollectedCount("natural_energy");
+                // power_pill kept for compatibility
+                dto.inventory.power_pill = g.GetCollectedCount("power_pill");
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[CloudSaveManager] Failed to sync local inventory into DTO: {ex.Message}");
+        }
+    }
 }
