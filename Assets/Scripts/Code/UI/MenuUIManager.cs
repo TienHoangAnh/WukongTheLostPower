@@ -122,7 +122,7 @@ public class MenuUIManager : MonoBehaviour
     {
         // (tuỳ bạn thêm popup xác nhận trước khi xoá save)
         // Đảm bảo rời trạng thái pause
-        if (pauseAffectsTimeScale) Time.timeScale = 1f;
+        if (pauseAffectsTimeScale) Time.timeScale =1f;
         IsMenuOpen = false;
 
 #if UNITY_STANDALONE || UNITY_EDITOR
@@ -132,6 +132,19 @@ public class MenuUIManager : MonoBehaviour
             Cursor.lockState = CursorLockMode.Locked;
         }
 #endif
+
+        // If a persistent PlayerStats was disabled (e.g. due to death), re-enable and reset it so New Game starts clean
+        var ps = PlayerStats.Instance;
+        if (ps != null)
+        {
+            // Ensure the player GameObject and its controller are active
+            ps.gameObject.SetActive(true);
+            var ctrl = ps.GetComponent<PlayerMovementContext>();
+            if (ctrl != null) ctrl.gameObject.SetActive(true);
+
+            // Reset HP/Stamina to max so New Game starts fresh
+            ps.SetStats(Mathf.RoundToInt(ps.maxHealth), Mathf.RoundToInt(ps.maxStamina));
+        }
 
         SafeSet(uiIngameForPC, false);
         SafeSet(menuRoot, false);

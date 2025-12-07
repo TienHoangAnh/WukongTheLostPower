@@ -490,8 +490,34 @@ public class DebugHUD : MonoBehaviour
         GUILayout.Label("You need to destroy all enemies to find power pieces.");
 
         // Show playtime and death count
-        int deaths = SaveRuntime.Current != null ? SaveRuntime.Current.deathCount : 0;
+        int deaths = SaveRuntime.Current != null ? SaveRuntime.Current.deathCount :0;
         GUILayout.Label($"Deaths: {deaths}");
+
+        // Show melee/ranged attack counts and inferred playstyle
+        var pb = PlayerBehaviorTracker.Instance;
+        int meleeAtt =0;
+        int rangedAtt =0;
+        string playstyle = "Unknown";
+
+        if (pb != null)
+        {
+            meleeAtt = pb.meleeCount;
+            rangedAtt = pb.rangedCount;
+            playstyle = pb.GetPlaystyle();
+        }
+        else
+        {
+        // fallback to SaveRuntime values if tracker isn't present
+        if (SaveRuntime.Current != null)
+        {
+            meleeAtt = SaveRuntime.Current.meleeCount;
+            rangedAtt = SaveRuntime.Current.rangedCount;
+        }
+        // fallback to PlayerPrefs playstyle if available
+        if (PlayerPrefs.HasKey("Playstyle")) playstyle = PlayerPrefs.GetString("Playstyle");
+        }
+
+        GUILayout.Label($"Melee: {meleeAtt} | Ranged: {rangedAtt} (Playstyle: {playstyle})");
 
         // Show single collectible status: prefer per-map required item from ChapterTransitionTrigger
         var trigger = ChapterTransitionTrigger.Instance;

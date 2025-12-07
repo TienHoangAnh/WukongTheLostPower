@@ -226,8 +226,11 @@ public class ChapterTransitionTrigger : MonoBehaviour
         if (!ChapterManager.Instance.HasNextMap())
         {
             Debug.Log("[Transition] Reached final map — show ending or credits.");
-            // Show victory UI
-            WinScreenManager.ShowVictory("Victory!", "You have restored the power of Wukong.");
+
+            // Show a simple, visible notification in the DebugHUD so player knows they've won and there is no next map.
+            // DebugHUD will render messages on-screen via OnGUI.
+            DebugHUD.ShowDebugMessage("No more maps: You have restored the power of Wukong!", 10f);
+
             yield break;
         }
 

@@ -180,7 +180,7 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
 
     public void Die()
     {
-        Debug.Log($"[PlayerStats] {gameObject.name} has died. Showing death UI...");
+        Debug.Log($"[PlayerStats] {gameObject.name} has died. Returning to MainMenu...");
 
         // Increment death count in save runtime and persist
         try
@@ -195,19 +195,22 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
             Debug.LogWarning($"[PlayerStats] Failed to update/save death count: {ex.Message}");
         }
 
-        // Show death UI instead of immediate destroy + load
-        // Prefer using MenuUIManager's deathPanel if available, otherwise fallback to DeathScreenManager
-        if (MenuUIManager.Instance != null)
-        {
-            MenuUIManager.Instance.ShowDeathPanel();
-        }
-        else
-        {
-            DeathScreenManager.ShowDeath("You Died", "You have fallen. Choose to continue or return to menu.");
-        }
+        // Restore time scale if it was paused
+        if (Time.timeScale <=0f) Time.timeScale =1f;
 
-        // Destroy player visuals but keep manager if needed, or disable controls
-        // Option chosen: disable gameobject's visuals and controllers to prevent further input
+#if UNITY_STANDALONE || UNITY_EDITOR
+        // Ensure cursor is available on desktop so player can interact with menu
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
+#endif
+
+        // Load main menu
+        if (LoadingScreen.I != null)
+            LoadingScreen.LoadScene("MainMenu");
+        else
+            SceneManager.LoadScene("MainMenu");
+
+        // Disable player controller visuals to be safe
         var controller = GetComponent<PlayerMovementContext>();
         if (controller != null) controller.gameObject.SetActive(false);
     }
