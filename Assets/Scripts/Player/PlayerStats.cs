@@ -112,8 +112,6 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // Reposition persistent player to scene anchor if present
-        // Prefer PlayerAnchor.Current (scene placed), otherwise find GameObject named "TransitionAnchor"
         if (PlayerAnchor.Current != null)
         {
             transform.position = PlayerAnchor.Current.position;
@@ -129,7 +127,6 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
             }
         }
 
-        // After reposition, update runtime pos so UI/Save reflect correct location
         UpdateSaveRuntime();
     }
 
@@ -183,7 +180,7 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
 
     public void Die()
     {
-        Debug.Log($"[PlayerStats] {gameObject.name} has died. Returning to Main Menu...");
+        Debug.Log($"[PlayerStats] {gameObject.name} has died. Showing death UI...");
 
         // Increment death count in save runtime and persist
         try
@@ -198,8 +195,21 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
             Debug.LogWarning($"[PlayerStats] Failed to update/save death count: {ex.Message}");
         }
 
-        Destroy(gameObject);
-        SceneManager.LoadScene("MainMenu");
+        // Show death UI instead of immediate destroy + load
+        // Prefer using MenuUIManager's deathPanel if available, otherwise fallback to DeathScreenManager
+        if (MenuUIManager.Instance != null)
+        {
+            MenuUIManager.Instance.ShowDeathPanel();
+        }
+        else
+        {
+            DeathScreenManager.ShowDeath("You Died", "You have fallen. Choose to continue or return to menu.");
+        }
+
+        // Destroy player visuals but keep manager if needed, or disable controls
+        // Option chosen: disable gameobject's visuals and controllers to prevent further input
+        var controller = GetComponent<PlayerMovementContext>();
+        if (controller != null) controller.gameObject.SetActive(false);
     }
 
     public void SetStats(int hp, int stamina)

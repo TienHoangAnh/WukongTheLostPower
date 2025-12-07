@@ -8,9 +8,9 @@ public class MenuUIManager : MonoBehaviour
     public static MenuUIManager Instance { get; private set; }
 
     [Header("Panels")]
-    [SerializeField] private GameObject menuRoot;      // Gốc của menu ESC (thường = UIMainMenu)
-    [SerializeField] private GameObject mainPanel;     // Panel menu chính (thường = UIMainMenu luôn)
-    [SerializeField] private GameObject uiIngameForPC; // HUD ingame
+    [SerializeField] private GameObject menuRoot;
+    [SerializeField] private GameObject mainPanel;
+    [SerializeField] private GameObject uiIngameForPC;
 
     [Header("Input & Pause")]
     [SerializeField] private KeyCode toggleKey = KeyCode.Escape;
@@ -32,16 +32,41 @@ public class MenuUIManager : MonoBehaviour
     float _prevTimeScale = 1f;
     float _nextToggleAllowedTime = 0f;
 
+    // Ensure an instance exists even if scene lost the component or designer forgot to place it
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    private static void EnsureInstanceExists()
+    {
+        if (Instance == null)
+        {
+            // Try to find existing in scene first (in case it's present but Awake not yet run)
+            var existing = FindFirstObjectByType<MenuUIManager>();
+            if (existing == null)
+            {
+                var go = new GameObject("MenuUIManager");
+                go.AddComponent<MenuUIManager>();
+                Debug.Log("[MenuUI] Auto-created MenuUIManager GameObject at runtime.");
+            }
+            else
+            {
+                // instance will be set in existing.Awake
+            }
+        }
+    }
+
     void Awake()
     {
+        Debug.Log("[MenuUI] Awake called. Instance currently: " + (Instance != null ? Instance.name : "null") + ", this=" + name);
+
         // Singleton + giữ lại MenuUIManager xuyên scene
         if (Instance == null)
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            Debug.Log("[MenuUI] Instance assigned and marked DontDestroyOnLoad: " + name);
         }
         else if (Instance != this)
         {
+            Debug.Log("[MenuUI] Duplicate MenuUIManager detected, destroying this one: " + name);
             Destroy(gameObject);
             return;
         }

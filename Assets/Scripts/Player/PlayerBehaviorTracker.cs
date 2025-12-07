@@ -19,6 +19,17 @@ public class PlayerBehaviorTracker : MonoBehaviour
             Destroy(gameObject);
             return;
         }
+
+        // Restore counts from SaveRuntime if available
+        if (SaveRuntime.Current != null)
+        {
+            var dto = SaveRuntime.Current;
+            if (dto != null)
+            {
+                meleeCount = dto.meleeCount;
+                rangedCount = dto.rangedCount;
+            }
+        }
     }
 
     void Update()
@@ -40,12 +51,19 @@ public class PlayerBehaviorTracker : MonoBehaviour
     {
         meleeCount++;
         Debug.Log("🧨 Melee attack recording: " + meleeCount);
+
+        // keep runtime DTO in sync so SaveRuntime has latest values
+        if (SaveRuntime.Current != null)
+            SaveRuntime.Current.meleeCount = meleeCount;
     }
 
     public void RecordRangedAttack()
     {
         rangedCount++;
         Debug.Log("🎯 Long range attack record:" + rangedCount);
+
+        if (SaveRuntime.Current != null)
+            SaveRuntime.Current.rangedCount = rangedCount;
     }
 
     public string GetPlaystyle()
@@ -57,11 +75,24 @@ public class PlayerBehaviorTracker : MonoBehaviour
 
     void OnDestroy()
     {
-        PlayerPrefs.SetString("Playstyle", GetPlaystyle()); 
+        PlayerPrefs.SetString("Playstyle", GetPlaystyle());
+
+        // Also persist counts into SaveRuntime so they are saved next time SaveRuntime is written
+        if (SaveRuntime.Current != null)
+        {
+            SaveRuntime.Current.meleeCount = meleeCount;
+            SaveRuntime.Current.rangedCount = rangedCount;
+        }
     }
 
     void OnApplicationQuit()
     {
         PlayerPrefs.SetString("Playstyle", GetPlaystyle());
+
+        if (SaveRuntime.Current != null)
+        {
+            SaveRuntime.Current.meleeCount = meleeCount;
+            SaveRuntime.Current.rangedCount = rangedCount;
+        }
     }
 }

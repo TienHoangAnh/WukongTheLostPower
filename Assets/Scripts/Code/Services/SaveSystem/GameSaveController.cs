@@ -68,6 +68,31 @@ public class GameSaveController : MonoBehaviour
         SaveSystem.Save(Data);
     }
 
+    /// <summary>
+    /// Reset collected items in-memory (and optionally persist) to prevent re-collect farming when simply reloading a scene.
+    /// This clears the runtime CollectedIds and counts and saves if requested.
+    /// </summary>
+    public void ResetCollectedInMemory(bool save = true)
+    {
+        if (Data == null) Data = new SaveData();
+
+        Data.collectedCounts = new Dictionary<string, int>();
+        Data.collectedIds = new List<string>();
+
+        if (CollectedIds == null) CollectedIds = new HashSet<string>();
+        else CollectedIds.Clear();
+
+        if (save)
+        {
+            SaveSystem.Save(Data);
+            Debug.Log("[GameSave] Reset collected items and saved.");
+        }
+        else
+        {
+            Debug.Log("[GameSave] Reset collected items (in-memory, not saved).");
+        }
+    }
+
     public void WipeAndReload()
     {
         System.IO.File.Delete(System.IO.Path.Combine(Application.persistentDataPath, "save.json"));

@@ -2,17 +2,23 @@
 
 public class HybridBossAttackStrategy : IBossAttackStrategy
 {
+    private readonly float damageBonus = 0f;
+    private readonly float speedBonus = 0.5f;
+
     public void Configure(BossContext context)
     {
-        context.stats.maxHealth += 400f;
-        context.stats.damage += 15f;
-        context.stats.attackRange = 10f;
-        context.agent.speed = context.stats.moveSpeed + 0.5f;
+        if (context == null || context.stats == null) return;
+
+        context.agent.speed = context.stats.moveSpeed + speedBonus;
         context.currentHealth = context.stats.maxHealth;
+
+        Debug.Log("[HybridBossAttackStrategy] Configured hybrid boss (using BossStats values, no mutation)");
     }
 
     public void Attack(BossContext context)
     {
+        if (context == null || context.player == null || context.stats == null) return;
+
         float dist = Vector3.Distance(context.transform.position, context.player.position);
 
         if (dist <= 4f)
@@ -20,8 +26,9 @@ public class HybridBossAttackStrategy : IBossAttackStrategy
             var player = context.player.GetComponent<ICharacter>();
             if (player != null)
             {
-                player.TakeDamage(context.stats.damage);
-                Debug.Log($"⚔ Hybrid Boss melee attacks deal {context.stats.damage} damage!");
+                float finalDamage = context.stats.damage + damageBonus;
+                player.TakeDamage(finalDamage);
+                Debug.Log($"⚔ Hybrid Boss melee attacks deal {finalDamage} damage!");
             }
         }
         else if (dist <= context.stats.attackRange)

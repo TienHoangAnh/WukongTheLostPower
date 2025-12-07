@@ -140,6 +140,6 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
             rb.linearVelocity = Vector3.up * 2f;
         }
 
-        Debug.Log($"[EnemyStats] Dropped item: {drop.name} tại {dropPos}");
+        Debug.Log($"[EnemyStats] Dropped item: {drop.name} at {dropPos}");
     }
 }

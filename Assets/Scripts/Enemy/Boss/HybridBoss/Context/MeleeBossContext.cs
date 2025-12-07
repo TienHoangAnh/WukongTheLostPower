@@ -4,7 +4,7 @@ using UnityEngine.AI;
 
 public class MeleeBossContext : MonoBehaviour, ICharacter
 {
-    public HybridBossAnimationManager animationManager;
+    public IEnemyAnimationManager animationManager;
     public BossStats stats; // assign ScriptableObject in inspector
     public Transform player;
     public NavMeshAgent agent; // optional, assign on prefab
@@ -41,7 +41,7 @@ public class MeleeBossContext : MonoBehaviour, ICharacter
 
     void Awake()
     {
-        if (animationManager == null) animationManager = GetComponent<HybridBossAnimationManager>();
+        if (animationManager == null) animationManager = GetComponent<IEnemyAnimationManager>();
         if (agent == null) agent = GetComponent<NavMeshAgent>();
     }
 

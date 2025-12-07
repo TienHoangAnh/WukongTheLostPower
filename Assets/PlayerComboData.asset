@@ -13,15 +13,15 @@ MonoBehaviour:
   m_Name: PlayerComboData
   m_EditorClassIdentifier: 
   comboSteps:
-  - skillName: Lien Quyen Hau Vuong
+  - skillName: JumpAttack
     bonusPercent: 0.1
     staminaCost: 2
     cooldown: 1
-    animationName: FlyKick
+    animationName: JumpAttack
     damage: 0
     duration: 1.2
     inputWindow: 1
-  - skillName: Cuong Phong Cuoc
+  - skillName: FlyKick
     bonusPercent: 0.3
     staminaCost: 3
     cooldown: 1
@@ -29,11 +29,11 @@ MonoBehaviour:
     damage: 0
     duration: 1.2
     inputWindow: 1
-  - skillName: Thien Quan Tram
+  - skillName: Scream
     bonusPercent: 0.5
     staminaCost: 5
     cooldown: 3
-    animationName: FlyKick
+    animationName: Scream
     damage: 0
     duration: 1.5
     inputWindow: 2

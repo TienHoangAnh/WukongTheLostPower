@@ -16,7 +16,7 @@ public class BossContext : MonoBehaviour, ICharacter
     private IBossAttackStrategy attackStrategy;
 
     // Animation manager (shared EnemyAnimationManager used for all boss types)
-    public EnemyAnimationManager animationManager;
+    public IEnemyAnimationManager animationManager;
 
     void Start()
     {
@@ -37,17 +37,13 @@ public class BossContext : MonoBehaviour, ICharacter
 
         // try to bind animation manager automatically
         if (animationManager == null)
-            animationManager = GetComponent<EnemyAnimationManager>() ?? FindFirstObjectByType<EnemyAnimationManager>();
+            animationManager = GetComponent<IEnemyAnimationManager>() ?? FindFirstObjectByType<HybridBossAnimationManager>();
 
         if (animationManager == null)
         {
             Debug.LogWarning("[BossContext] EnemyAnimationManager not found on boss. Animations will not play.");
         }
-        else if (animationManager.animator == null)
-        {
-            Debug.LogWarning("[BossContext] EnemyAnimationManager found but Animator is null. Assign Animator in Inspector or ensure Animator component exists on the prefab.");
-        }
-
+ 
         agent.speed = stats.moveSpeed;
         currentHealth = stats.maxHealth;
 

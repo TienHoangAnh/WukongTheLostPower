@@ -4,7 +4,7 @@ using UnityEngine.AI;
 
 public class HybridBossContext : MonoBehaviour, ICharacter
 {
-    public HybridBossAnimationManager animationManager;
+    public IEnemyAnimationManager animationManager;
     public BossStats stats; // assign ScriptableObject in inspector
     public Transform player;
     public NavMeshAgent agent; // optional, assign on prefab
@@ -41,7 +41,7 @@ public class HybridBossContext : MonoBehaviour, ICharacter
 
     void Awake()
     {
-        if (animationManager == null) animationManager = GetComponent<HybridBossAnimationManager>();
+        if (animationManager == null) animationManager = GetComponent<IEnemyAnimationManager>();
         if (agent == null) agent = GetComponent<NavMeshAgent>();
     }
 
@@ -70,6 +70,17 @@ public class HybridBossContext : MonoBehaviour, ICharacter
 
         attackTimer += Time.deltaTime;
         stateTimer += Time.deltaTime;
+
+        // If player out of detection range go back to idle sit
+        if (player != null)
+        {
+            float dToPlayer = Vector3.Distance(transform.position, player.position);
+            if (dToPlayer > detectionRange && state != State.IdleSit)
+            {
+                ChangeState(State.IdleSit);
+                return;
+            }
+        }
 
         // Keep agent chasing target if available
         if ((state == State.Chase || state == State.ChaseLoop) && player != null && agent != null)
@@ -197,9 +208,17 @@ public class HybridBossContext : MonoBehaviour, ICharacter
         {
             case State.IdleSit:
                 // Idle animation is assumed to be the default in animator
+                // ensure navagent stopped and chasing flag cleared
+                if (agent != null) agent.isStopped = true;
+                animationManager?.StopChasePlayer();
+                // stop any attack coroutines when returning to idle
+                StopAllCoroutines();
+                attackTimer =0f;
+                stateTimer =0f;
+                animationManager?.PlayIdleSit();
                 break;
             case State.Standing:
-                animationManager?.PlayStanding();
+                animationManager?.PlayStandUp();
                 break;
             case State.Chase:
                 animationManager?.PlayChasePlayer();

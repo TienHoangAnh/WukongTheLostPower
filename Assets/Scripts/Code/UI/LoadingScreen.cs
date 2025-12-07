@@ -26,16 +26,16 @@ public class LoadingScreen : MonoBehaviour
 
  void Awake()
  {
- if (I == null)
- {
- I = this;
- DontDestroyOnLoad(gameObject);
- if (canvasGroup != null) canvasGroup.alpha =0f;
- }
- else if (I != this)
- {
- Destroy(gameObject);
- }
+     if (I == null)
+     {
+        I = this;
+        DontDestroyOnLoad(gameObject);
+        if (canvasGroup != null) canvasGroup.alpha =0f;
+     }
+     else if (I != this)
+     {
+        Destroy(gameObject);
+     }
  }
 
  public static void LoadScene(string sceneName)

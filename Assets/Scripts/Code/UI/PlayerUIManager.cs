@@ -16,474 +16,434 @@ using TMPro;
 /// </summary>
 public class PlayerUIManager : MonoBehaviour
 {
- public static PlayerUIManager I { get; set; }
+    public static PlayerUIManager I { get; set; }
 
- public Slider healthSlider;
- public Slider staminaSider;
- private PlayerStats playerStats;
- private PlayerCombat playerCombat; // new reference to query cooldowns
+    public Slider healthSlider;
+    public Slider staminaSider;
 
- [Header("Item Slots")] 
- [Tooltip("Item id to show on the HP slot (e.g. 'holy_water')")]
- [SerializeField] private string hpItemId = "holy_water";
- [Tooltip("Image component to display HP item icon (child Icon). Do NOT assign the frame)" )]
- [SerializeField] private Image hpItemImage;
- [Tooltip("Text component to display HP item count (use UnityEngine.UI.Text)")]
- [SerializeField] private TMPro.TMP_Text hpItemCountText;
+    private PlayerStats playerStats;
+    private PlayerCombat playerCombat; // query skill cooldowns
 
- [Tooltip("Item id to show on the MP slot (e.g. 'elixir')")]
- [SerializeField] private string mpItemId = "elixir";
- [Tooltip("Image component to display MP item icon (child Icon). Do NOT assign the frame)" )]
- [SerializeField] private Image mpItemImage;
- [Tooltip("Text component to display MP item count (use UnityEngine.UI.Text)")]
- [SerializeField] private TMPro.TMP_Text mpItemCountText;
+    [Header("Item Slots")]
+    [Tooltip("Item id to show on the HP slot (e.g. 'holy_water')")]
+    [SerializeField] private string hpItemId = "holy_water";
 
- [Header("Skill Cooldown Texts (Q/E/R/J)")]
- [Tooltip("TMP text to display cooldown remaining for Q (melee skill1)")]
- [SerializeField] private TMP_Text qCooldownText;
- [Tooltip("TMP text to display cooldown remaining for E (melee skill2)")]
- [SerializeField] private TMP_Text eCooldownText;
- [Tooltip("TMP text to display cooldown remaining for R (melee skill3)")]
- [SerializeField] private TMP_Text rCooldownText;
- [Tooltip("TMP text to display cooldown remaining for J (ranged)")]
- [SerializeField] private TMP_Text jCooldownText;
+    [Tooltip("Image component to display HP item icon (child Icon). Do NOT assign the frame)")]
+    [SerializeField] private Image hpItemImage;
 
- private int hpCount =0;
- private int mpCount =0;
+    [Tooltip("Text component to display HP item count (TMP)")]
+    [SerializeField] private TMP_Text hpItemCountText;
 
- void Awake()
- {
- // Warn if mistakenly attached to the Player GameObject
- if (gameObject.CompareTag("Player"))
- {
- Debug.LogWarning("PlayerUIManager is attached to a GameObject with tag 'Player'.\n" +
- "This component should be attached to a scene-local HUD Canvas (e.g. HUD_Canvas).\n" +
- "Move the script to the HUD prefab so the UI is recreated per scene and can rebind to the persistent Player.");
- }
+    [Tooltip("Item id to show on the MP slot (e.g. 'elixir')")]
+    [SerializeField] private string mpItemId = "elixir";
 
- if (I == null)
- {
- I = this;
- // NOTE: HUD is scene-local now. Do NOT call DontDestroyOnLoad so each scene can provide its own HUD prefab.
+    [Tooltip("Image component to display MP item icon (child Icon). Do NOT assign the frame)")]
+    [SerializeField] private Image mpItemImage;
 
- // Ensure this canvas renders above scene UI by default
- var canvas = GetComponentInChildren<Canvas>();
- if (canvas != null)
- {
- // use a large sorting order so scene-local UI is on top
- canvas.sortingOrder = Mathf.Max(canvas.sortingOrder,100);
- }
- }
- else if (I != this)
- {
- // If another instance already exists in this scene, destroy this duplicate
- Destroy(gameObject);
- return;
- }
- }
+    [Tooltip("Text component to display MP item count (TMP)")]
+    [SerializeField] private TMP_Text mpItemCountText;
 
- void OnEnable()
- {
- SceneManager.sceneLoaded += OnSceneLoaded;
- RebindPlayer(); // in case player already exists
- }
+    [Header("Skill Cooldown Texts (Q/E/R/J)")]
+    [SerializeField] private TMP_Text qCooldownText;
+    [SerializeField] private TMP_Text eCooldownText;
+    [SerializeField] private TMP_Text rCooldownText;
+    [SerializeField] private TMP_Text jCooldownText;
 
- void OnDisable()
- {
- SceneManager.sceneLoaded -= OnSceneLoaded;
- }
+    private int hpCount = 0;
+    private int mpCount = 0;
 
- private void OnSceneLoaded(Scene s, LoadSceneMode m)
- {
- // delay a frame if needed
- RebindPlayer();
- }
+    // -------------------------------------------------------------
+    // Initialization
+    // -------------------------------------------------------------
+    void Awake()
+    {
+        // Warn if mistakenly attached to the Player GameObject
+        if (gameObject.CompareTag("Player"))
+        {
+            Debug.LogWarning(
+                "PlayerUIManager is attached to a GameObject with tag 'Player'.\n" +
+                "This component should be attached to a scene-local HUD Canvas."
+            );
+        }
 
- private void RebindPlayer()
- {
- // Try common ways to find PlayerStats: singleton, FindObjectOfType, or by tag
- var ps = PlayerStats.Instance ?? FindFirstObjectByType<PlayerStats>();
- if (ps == null)
- {
- var playerGo = GameObject.FindWithTag("Player");
- if (playerGo != null)
- ps = playerGo.GetComponent<PlayerStats>() ?? playerGo.GetComponentInChildren<PlayerStats>();
- }
+        if (I == null)
+        {
+            I = this;
 
- if (ps != null)
- {
- playerStats = ps;
+            // No DontDestroyOnLoad: HUD is scene-local
+            var canvas = GetComponentInChildren<Canvas>();
+            if (canvas != null)
+            {
+                canvas.sortingOrder = Mathf.Max(canvas.sortingOrder, 100);
+            }
+        }
+        else if (I != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+    }
 
- // Try to bind PlayerCombat on same GameObject
- playerCombat = ps.GetComponent<PlayerCombat>() ?? ps.GetComponentInChildren<PlayerCombat>();
+    void OnEnable()
+    {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        RebindPlayer();
+    }
 
- // configure sliders' ranges
- if (healthSlider != null)
- {
- healthSlider.maxValue = ps.maxHealth;
- healthSlider.value = ps.currentHealth;
- }
- if (staminaSider != null)
- {
- staminaSider.maxValue = ps.maxStamina;
- staminaSider.value = ps.currentStamina;
- }
+    void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
 
- // update UI immediately from ps
- UpdateHpUi(ps.currentHealth, ps.maxHealth);
- UpdateStaminaUi(ps.currentStamina, ps.maxStamina);
+    private void OnSceneLoaded(Scene s, LoadSceneMode m)
+    {
+        RebindPlayer();
+    }
 
- Debug.Log($"[PlayerUI] Bound to PlayerStats (HP={ps.currentHealth}, Stamina={ps.currentStamina})");
+    // -------------------------------------------------------------
+    // Rebinding logic
+    // -------------------------------------------------------------
+    private void RebindPlayer()
+    {
+        // Try common ways to find PlayerStats
+        var ps = PlayerStats.Instance ?? FindFirstObjectByType<PlayerStats>();
 
- // optionally subscribe to change events if you add them to PlayerStats
- // ps.OnStatsChanged += OnPlayerStatsChanged;
- }
- else
- {
- Debug.LogWarning("[PlayerUI] PlayerStats not found when rebinding UI. Will retry shortly.");
- // retry a few times in case player is created after UI
- StartCoroutine(CoRetryBindPlayer(5,0.2f));
- }
+        if (ps == null)
+        {
+            var playerGo = GameObject.FindWithTag("Player");
+            if (playerGo != null)
+                ps = playerGo.GetComponent<PlayerStats>() ?? playerGo.GetComponentInChildren<PlayerStats>();
+        }
 
- // refresh item icons from db in case UI persisted across scenes
- RefreshIconsFromDatabase();
- // update item counts from saved data if GameSaveController exists
- if (GameSaveController.I != null)
- {
- hpCount = GameSaveController.I.GetCollectedCount(hpItemId);
- mpCount = GameSaveController.I.GetCollectedCount(mpItemId);
- UpdateItemSlots();
- }
- }
+        if (ps != null)
+        {
+            playerStats = ps;
+            playerCombat = ps.GetComponent<PlayerCombat>() ?? ps.GetComponentInChildren<PlayerCombat>();
 
- private System.Collections.IEnumerator CoRetryBindPlayer(int attempts, float delay)
- {
- for (int i =0; i < attempts; i++)
- {
- yield return new WaitForSeconds(delay);
- var ps = PlayerStats.Instance ?? FindFirstObjectByType<PlayerStats>();
- if (ps == null)
- {
- var playerGo = GameObject.FindWithTag("Player");
- if (playerGo != null)
- ps = playerGo.GetComponent<PlayerStats>() ?? playerGo.GetComponentInChildren<PlayerStats>();
- }
+            // Bind sliders
+            if (healthSlider != null)
+            {
+                healthSlider.maxValue = ps.maxHealth;
+                healthSlider.value = ps.currentHealth;
+            }
+            if (staminaSider != null)
+            {
+                staminaSider.maxValue = ps.maxStamina;
+                staminaSider.value = ps.currentStamina;
+            }
 
- if (ps != null)
- {
- playerStats = ps;
- playerCombat = ps.GetComponent<PlayerCombat>() ?? ps.GetComponentInChildren<PlayerCombat>();
- if (healthSlider != null) { healthSlider.maxValue = ps.maxHealth; healthSlider.value = ps.currentHealth; }
- if (staminaSider != null) { staminaSider.maxValue = ps.maxStamina; staminaSider.value = ps.currentStamina; }
- UpdateHpUi(ps.currentHealth, ps.maxHealth);
- UpdateStaminaUi(ps.currentStamina, ps.maxStamina);
- Debug.Log($"[PlayerUI] Successfully rebound to PlayerStats after retry (HP={ps.currentHealth}).");
- yield break;
- }
- }
- Debug.LogWarning("[PlayerUI] Failed to bind PlayerStats after retries.");
- }
+            UpdateHpUi(ps.currentHealth, ps.maxHealth);
+            UpdateStaminaUi(ps.currentStamina, ps.maxStamina);
 
- void OnDestroy()
- {
- if (I == this) I = null;
- }
+            Debug.Log($"[PlayerUI] Bound to PlayerStats (HP={ps.currentHealth}, Stamina={ps.currentStamina})");
+        }
+        else
+        {
+            Debug.LogWarning("[PlayerUI] PlayerStats not found. Will retry...");
+            StartCoroutine(CoRetryBindPlayer(5, 0.2f));
+        }
 
- void Update()
- {
- // Update sliders if playerStats and sliders are present
- if (playerStats != null)
- {
- if (healthSlider != null) healthSlider.value = playerStats.currentHealth;
- if (staminaSider != null) staminaSider.value = playerStats.currentStamina;
- }
+        RefreshIconsFromDatabase();
 
- // Always update skill cooldown displays (separate from slider bindings)
- UpdateSkillCooldowns();
- }
+        // Load item counts from save
+        if (GameSaveController.I != null)
+        {
+            hpCount = GameSaveController.I.GetCollectedCount(hpItemId);
+            mpCount = GameSaveController.I.GetCollectedCount(mpItemId);
+            UpdateItemSlots();
+        }
+    }
 
- // Read icon sprites from InventoryDatabase (if present)
- private void RefreshIconsFromDatabase()
- {
- if (InventoryDatabase.I != null)
- {
- var hpAsset = InventoryDatabase.I.GetById(hpItemId);
- if (hpAsset != null && hpAsset.icon != null && hpItemImage != null)
- {
- hpItemImage.sprite = hpAsset.icon;
- hpItemImage.SetNativeSize();
- }
+    private System.Collections.IEnumerator CoRetryBindPlayer(int attempts, float delay)
+    {
+        for (int i = 0; i < attempts; i++)
+        {
+            yield return new WaitForSeconds(delay);
 
- var mpAsset = InventoryDatabase.I.GetById(mpItemId);
- if (mpAsset != null && mpAsset.icon != null && mpItemImage != null)
- {
- mpItemImage.sprite = mpAsset.icon;
- mpItemImage.SetNativeSize();
- }
- }
- }
+            var ps = PlayerStats.Instance ?? FindFirstObjectByType<PlayerStats>();
+            if (ps == null)
+            {
+                var playerGo = GameObject.FindWithTag("Player");
+                if (playerGo != null)
+                    ps = playerGo.GetComponent<PlayerStats>() ?? playerGo.GetComponentInChildren<PlayerStats>();
+            }
 
- /// <summary>
- /// Called by pickup logic when player picks up an item.
- /// Increments quick-slot count if the picked id matches hp/mp ids.
- /// </summary>
- public void AddItem(string id, int count =1)
- {
- if (string.IsNullOrEmpty(id) || count <=0) return;
+            if (ps != null)
+            {
+                playerStats = ps;
+                playerCombat = ps.GetComponent<PlayerCombat>() ?? ps.GetComponentInChildren<PlayerCombat>();
 
- if (id == hpItemId)
- {
- hpCount += count;
- UpdateItemSlots();
- UI_Toasts.Show($"+{count} HP item");
- return;
- }
+                if (healthSlider != null)
+                {
+                    healthSlider.maxValue = ps.maxHealth;
+                    healthSlider.value = ps.currentHealth;
+                }
+                if (staminaSider != null)
+                {
+                    staminaSider.maxValue = ps.maxStamina;
+                    staminaSider.value = ps.currentStamina;
+                }
 
- if (id == mpItemId) 
- {
- mpCount += count;
- UpdateItemSlots();
- UI_Toasts.Show($"+{count} MP item");
- return;
- }
+                UpdateHpUi(ps.currentHealth, ps.maxHealth);
+                UpdateStaminaUi(ps.currentStamina, ps.maxStamina);
 
- // Unknown item id: ignore or log
- Debug.Log($"[PlayerUIManager] Picked unknown item id: {id}");
- }
+                Debug.Log($"[PlayerUI] Successfully rebound to PlayerStats after retry.");
+                yield break;
+            }
+        }
 
- /// <summary>
- /// Use one HP item: heal player based on InventoryItem.hpRestore or default value.
- /// Returns true if used.
- /// </summary>
- public bool UseHpItem()
- {
- Debug.Log($"[PlayerUI] UseHpItem called. playerStats={(playerStats==null?"null":"set")}, hpCount={hpCount}, GameSave={(GameSaveController.I==null?"null":"present")} ");
+        Debug.LogWarning("[PlayerUI] Failed to bind PlayerStats after retries.");
+    }
 
- if (playerStats == null) return false;
+    void OnDestroy()
+    {
+        if (I == this) I = null;
+    }
 
- // Prefer using saved/global counts if available
- if (GameSaveController.I != null)
- {
- var available = GameSaveController.I.GetCollectedCount(hpItemId);
- Debug.Log($"[PlayerUI] GameSave available hp items = {available}");
- if (available <=0) return false;
+    // -------------------------------------------------------------
+    // Update loop
+    // -------------------------------------------------------------
+    void Update()
+    {
+        if (playerStats != null)
+        {
+            if (healthSlider != null)
+                healthSlider.value = playerStats.currentHealth;
 
- float heal =50f;
- if (InventoryDatabase.I != null)
- {
- var asset = InventoryDatabase.I.GetById(hpItemId);
- if (asset != null) heal = asset.hpRestore >0 ? asset.hpRestore : heal;
- }
+            if (staminaSider != null)
+                staminaSider.value = playerStats.currentStamina;
+        }
 
- playerStats.Heal(heal);
+        UpdateSkillCooldowns();
+    }
 
- // Deduct from save and sync internal count from save
- GameSaveController.I.UseItem(hpItemId,1);
- hpCount = GameSaveController.I.GetCollectedCount(hpItemId);
+    // -------------------------------------------------------------
+    // Icon refresh
+    // -------------------------------------------------------------
+    private void RefreshIconsFromDatabase()
+    {
+        if (InventoryDatabase.I != null)
+        {
+            var hpAsset = InventoryDatabase.I.GetById(hpItemId);
+            if (hpAsset != null && hpAsset.icon != null && hpItemImage != null)
+            {
+                hpItemImage.sprite = hpAsset.icon;
+                hpItemImage.SetNativeSize();
+            }
 
- UpdateItemSlots();
- UI_Toasts.Show($"Used HP item. Healed {heal}");
- Debug.Log($"[PlayerUI] Used HP item via GameSave. New hpCount={hpCount}");
- return true;
- }
+            var mpAsset = InventoryDatabase.I.GetById(mpItemId);
+            if (mpAsset != null && mpAsset.icon != null && mpItemImage != null)
+            {
+                mpItemImage.sprite = mpAsset.icon;
+                mpItemImage.SetNativeSize();
+            }
+        }
+    }
 
- // Fallback to local count logic
- if (hpCount <=0) { Debug.Log("[PlayerUI] No local hpCount to use."); return false; }
+    // -------------------------------------------------------------
+    // Add / Use Items
+    // -------------------------------------------------------------
+    public void AddItem(string id, int count = 1)
+    {
+        if (string.IsNullOrEmpty(id) || count <= 0) return;
 
- float fallbackHeal =50f;
- if (InventoryDatabase.I != null)
- {
- var asset = InventoryDatabase.I.GetById(hpItemId);
- if (asset != null) fallbackHeal = asset.hpRestore >0 ? asset.hpRestore : fallbackHeal;
- }
+        if (id == hpItemId)
+        {
+            hpCount += count;
+            UpdateItemSlots();
+            UI_Toasts.Show($"+{count} HP item");
+            return;
+        }
 
- playerStats.Heal(fallbackHeal);
- hpCount = Mathf.Max(0, hpCount -1);
- UpdateItemSlots();
- UI_Toasts.Show($"Used HP item. Healed {fallbackHeal}");
- Debug.Log($"[PlayerUI] Used HP item locally. New hpCount={hpCount}");
- return true;
- }
+        if (id == mpItemId)
+        {
+            mpCount += count;
+            UpdateItemSlots();
+            UI_Toasts.Show($"+{count} MP item");
+            return;
+        }
 
- /// <summary>
- /// Use one MP (stamina) item: recover stamina based on InventoryItem.staminaRestore or default.
- /// </summary>
- public bool UseMpItem()
- {
- Debug.Log($"[PlayerUI] UseMpItem called. playerStats={(playerStats==null?"null":"set")}, mpCount={mpCount}, GameSave={(GameSaveController.I==null?"null":"present")} ");
+        Debug.Log($"[PlayerUIManager] Picked unknown item id: {id}");
+    }
 
- if (playerStats == null) return false;
+    public bool UseHpItem()
+    {
+        Debug.Log($"[PlayerUI] UseHpItem called. hpCount={hpCount}");
 
- if (GameSaveController.I != null)
- {
- var available = GameSaveController.I.GetCollectedCount(mpItemId);
- Debug.Log($"[PlayerUI] GameSave available mp items = {available}");
- if (available <=0) return false;
+        if (playerStats == null)
+            return false;
 
- float recover =50f; 
- if (InventoryDatabase.I != null)
- {
- var asset = InventoryDatabase.I.GetById(mpItemId);
- if (asset != null) recover = asset.staminaRestore >0 ? asset.staminaRestore : recover;
- }
+        // Prefer using save-system counts
+        if (GameSaveController.I != null)
+        {
+            var available = GameSaveController.I.GetCollectedCount(hpItemId);
+            if (available <= 0)
+                return false;
 
- playerStats.RecoverStamina(recover);
+            float heal = 50f;
+            if (InventoryDatabase.I != null)
+            {
+                var asset = InventoryDatabase.I.GetById(hpItemId);
+                if (asset != null)
+                    heal = asset.hpRestore > 0 ? asset.hpRestore : heal;
+            }
 
- GameSaveController.I.UseItem(mpItemId,1);
- mpCount = GameSaveController.I.GetCollectedCount(mpItemId);
+            playerStats.Heal(heal);
+            GameSaveController.I.UseItem(hpItemId, 1);
+            hpCount = GameSaveController.I.GetCollectedCount(hpItemId);
 
- UpdateItemSlots();
- UI_Toasts.Show($"Used MP item. Recovered {recover}");
- Debug.Log($"[PlayerUI] Used MP item via GameSave. New mpCount={mpCount}");
- return true;
- }
+            UpdateItemSlots();
+            UI_Toasts.Show($"Used HP item. Healed {heal}");
+            return true;
+        }
 
- if (mpCount <=0) { Debug.Log("[PlayerUI] No local mpCount to use."); return false; }
+        // Fallback to local count
+        if (hpCount <= 0)
+            return false;
 
- float fallbackRecover =50f;
- if (InventoryDatabase.I != null)
- {
- var asset = InventoryDatabase.I.GetById(mpItemId);
- if (asset != null) fallbackRecover = asset.staminaRestore >0 ? asset.staminaRestore : fallbackRecover;
- }
+        float fallbackHeal = 50f;
+        if (InventoryDatabase.I != null)
+        {
+            var asset = InventoryDatabase.I.GetById(hpItemId);
+            if (asset != null)
+                fallbackHeal = asset.hpRestore > 0 ? asset.hpRestore : fallbackHeal;
+        }
 
- playerStats.RecoverStamina(fallbackRecover);
- mpCount = Mathf.Max(0, mpCount -1);
- UpdateItemSlots();
- UI_Toasts.Show($"Used MP item. Recovered {fallbackRecover}");
- Debug.Log($"[PlayerUI] Used MP item locally. New mpCount={mpCount}");
- return true;
- }
+        playerStats.Heal(fallbackHeal);
+        hpCount = Mathf.Max(0, hpCount - 1);
 
- /// <summary>
- /// Wrapper methods for UI Buttons: these are void and will appear in the Button OnClick inspector.
- /// </summary>
- public void OnClick_UseHpItem()
- {
- Debug.Log("[PlayerUI] OnClick_UseHpItem invoked");
- UseHpItem();
- }
+        UpdateItemSlots();
+        UI_Toasts.Show($"Used HP item. Healed {fallbackHeal}");
+        return true;
+    }
 
- public void OnClick_UseMpItem()
- {
- Debug.Log("[PlayerUI] OnClick_UseMpItem invoked");
- UseMpItem();
- }
+    public bool UseMpItem()
+    {
+        Debug.Log($"[PlayerUI] UseMpItem called. mpCount={mpCount}");
 
- /// <summary>
- /// Update UI visuals for quick slots based on internal counts.
- /// Only toggles icon/count visibility (frame remains under UI designer control).
- /// </summary>
- private void UpdateItemSlots()
- {
- if (hpItemImage != null && hpItemCountText != null)
- {
- hpItemImage.gameObject.SetActive(hpCount >0);
- hpItemCountText.gameObject.SetActive(hpCount >0);
- hpItemCountText.text = hpCount >0 ? hpCount.ToString() : "";
- }
+        if (playerStats == null)
+            return false;
 
- if (mpItemImage != null && mpItemCountText != null)
- {
- mpItemImage.gameObject.SetActive(mpCount >0);
- mpItemCountText.gameObject.SetActive(mpCount >0);
- mpItemCountText.text = mpCount >0 ? mpCount.ToString() : "";
- }
+        if (GameSaveController.I != null)
+        {
+            var available = GameSaveController.I.GetCollectedCount(mpItemId);
+            if (available <= 0)
+                return false;
 
- // Also update sliders immediately from playerStats if present
- if (playerStats != null)
- {
- if (healthSlider != null) healthSlider.value = playerStats.currentHealth;
- if (staminaSider != null) staminaSider.value = playerStats.currentStamina;
- }
- }
+            float recover = 50f;
+            if (InventoryDatabase.I != null)
+            {
+                var asset = InventoryDatabase.I.GetById(mpItemId);
+                if (asset != null)
+                    recover = asset.staminaRestore > 0 ? asset.staminaRestore : recover;
+            }
 
- // Optional getters
- public int GetHpCount() => hpCount;
- public int GetMpCount() => mpCount;
+            playerStats.RecoverStamina(recover);
 
- // Helper methods to update HP/MP UI safely
- private void UpdateHpUi(float current, float max)
- {
- if (healthSlider != null)
- {
- healthSlider.maxValue = max;
- healthSlider.value = current;
- }
- }
+            GameSaveController.I.UseItem(mpItemId, 1);
+            mpCount = GameSaveController.I.GetCollectedCount(mpItemId);
 
- private void UpdateStaminaUi(float current, float max)
- {
- if (staminaSider != null)
- {
- staminaSider.maxValue = max;
- staminaSider.value = current;
- }
- }
+            UpdateItemSlots();
+            UI_Toasts.Show($"Used MP item. Recovered {recover}");
+            return true;
+        }
 
- // Update skill cooldown text fields
- private void UpdateSkillCooldowns()
- {
- if (playerCombat == null) return;
+        if (mpCount <= 0)
+            return false;
 
- // Q (index0)
- if (qCooldownText != null)
- {
- float rem = playerCombat.GetComboCooldownRemaining(0);
- if (rem >0f)
- {
- qCooldownText.gameObject.SetActive(true);
- qCooldownText.text = rem.ToString("F1") + "s";
- }
- else
- {
- qCooldownText.gameObject.SetActive(false);
- }
- }
+        float fallbackRecover = 50f;
+        if (InventoryDatabase.I != null)
+        {
+            var asset = InventoryDatabase.I.GetById(mpItemId);
+            if (asset != null)
+                fallbackRecover = asset.staminaRestore > 0 ? asset.staminaRestore : fallbackRecover;
+        }
 
- // E (index1)
- if (eCooldownText != null)
- {
- float rem = playerCombat.GetComboCooldownRemaining(1);
- if (rem >0f)
- {
- eCooldownText.gameObject.SetActive(true);
- eCooldownText.text = rem.ToString("F1") + "s";
- }
- else
- {
- eCooldownText.gameObject.SetActive(false);
- }
- }
+        playerStats.RecoverStamina(fallbackRecover);
+        mpCount = Mathf.Max(0, mpCount - 1);
 
- // R (index2)
- if (rCooldownText != null)
- {
- float rem = playerCombat.GetComboCooldownRemaining(2);
- if (rem >0f)
- {
- rCooldownText.gameObject.SetActive(true);
- rCooldownText.text = rem.ToString("F1") + "s";
- }
- else
- {
- rCooldownText.gameObject.SetActive(false);
- }
- }
+        UpdateItemSlots();
+        UI_Toasts.Show($"Used MP item. Recovered {fallbackRecover}");
+        return true;
+    }
 
- // J (ranged)
- if (jCooldownText != null)
- {
- float rem = playerCombat.GetRangedCooldownRemaining();
- if (rem >0f)
- {
- jCooldownText.gameObject.SetActive(true);
- jCooldownText.text = rem.ToString("F1") + "s";
- }
- else
- {
- jCooldownText.gameObject.SetActive(false);
- }
- }
- }
+    public void OnClick_UseHpItem() => UseHpItem();
+    public void OnClick_UseMpItem() => UseMpItem();
+
+    // -------------------------------------------------------------
+    // UI update
+    // -------------------------------------------------------------
+    private void UpdateItemSlots()
+    {
+        // HP
+        if (hpItemImage != null && hpItemCountText != null)
+        {
+            bool active = hpCount > 0;
+            hpItemImage.gameObject.SetActive(active);
+            hpItemCountText.gameObject.SetActive(active);
+            hpItemCountText.text = active ? hpCount.ToString() : "";
+        }
+
+        // MP
+        if (mpItemImage != null && mpItemCountText != null)
+        {
+            bool active = mpCount > 0;
+            mpItemImage.gameObject.SetActive(active);
+            mpItemCountText.gameObject.SetActive(active);
+            mpItemCountText.text = active ? mpCount.ToString() : "";
+        }
+    }
+
+    private void UpdateHpUi(float current, float max)
+    {
+        if (healthSlider != null)
+        {
+            healthSlider.maxValue = max;
+            healthSlider.value = current;
+        }
+    }
+
+    private void UpdateStaminaUi(float current, float max)
+    {
+        if (staminaSider != null)
+        {
+            staminaSider.maxValue = max;
+            staminaSider.value = current;
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Skill cooldown UI
+    // -------------------------------------------------------------
+    private void UpdateSkillCooldowns()
+    {
+        if (playerCombat == null)
+            return;
+
+        UpdateCooldownText(qCooldownText, playerCombat.GetComboCooldownRemaining(0));
+        UpdateCooldownText(eCooldownText, playerCombat.GetComboCooldownRemaining(1));
+        UpdateCooldownText(rCooldownText, playerCombat.GetComboCooldownRemaining(2));
+        UpdateCooldownText(jCooldownText, playerCombat.GetRangedCooldownRemaining());
+    }
+
+    private void UpdateCooldownText(TMP_Text field, float remaining)
+    {
+        if (field == null) return;
+
+        if (remaining > 0f)
+        {
+            field.gameObject.SetActive(true);
+            field.text = remaining.ToString("F1") + "s";
+        }
+        else
+        {
+            field.gameObject.SetActive(false);
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Public getters
+    // -------------------------------------------------------------
+    public int GetHpCount() => hpCount;
+    public int GetMpCount() => mpCount;
 }

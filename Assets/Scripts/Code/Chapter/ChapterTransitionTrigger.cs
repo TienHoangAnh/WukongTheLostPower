@@ -45,6 +45,23 @@ public class ChapterTransitionTrigger : MonoBehaviour
         }
         else if (Instance != this)
         {
+            // Copy per-scene configuration from the scene's trigger into the persistent instance
+            // BEFORE destroying this scene instance. This ensures the persistent Instance reflects
+            // the new scene's requiredItemForMaps even if the scene object's OnSceneLoaded handlers
+            // don't get a chance to run.
+            try
+            {
+                Instance.requiredTime = this.requiredTime;
+                Instance.requireNoEnemies = this.requireNoEnemies;
+                Instance.unlockSkillId = this.unlockSkillId;
+                Instance.persistAcrossScenes = this.persistAcrossScenes;
+                Instance.requiredItemForMaps = (this.requiredItemForMaps != null) ? (string[])this.requiredItemForMaps.Clone() : new string[0];
+            }
+            catch
+            {
+                // ignore copy errors
+            }
+
             Destroy(gameObject);
         }
     }
@@ -82,8 +99,10 @@ public class ChapterTransitionTrigger : MonoBehaviour
                 this.unlockSkillId = t.unlockSkillId;
                 this.persistAcrossScenes = t.persistAcrossScenes;
 
-                if (t.requiredItemForMaps != null && t.requiredItemForMaps.Length > 0)
-                    this.requiredItemForMaps = (string[])t.requiredItemForMaps.Clone();
+                // Always copy the per-scene requiredItemForMaps array into the persistent instance.
+                // Previously we only copied when the array had length >0 which caused the persistent
+                // trigger to keep the previous scene's values when the new scene had an empty array.
+                this.requiredItemForMaps = (t.requiredItemForMaps != null) ? (string[])t.requiredItemForMaps.Clone() : new string[0];
             }
             catch
             {
@@ -207,6 +226,8 @@ public class ChapterTransitionTrigger : MonoBehaviour
         if (!ChapterManager.Instance.HasNextMap())
         {
             Debug.Log("[Transition] Reached final map — show ending or credits.");
+            // Show victory UI
+            WinScreenManager.ShowVictory("Victory!", "You have restored the power of Wukong.");
             yield break;
         }
 
@@ -239,6 +260,9 @@ public class ChapterTransitionTrigger : MonoBehaviour
 
     /// <summary>
     /// Returns the required collectible id for the current map, or null if none is defined.
+    /// Behavior: requiredItemForMaps is 0-based where element 0 == map 1. If the array is shorter than the
+    /// current map index, the code now falls back to the last defined element so a single-element array
+    /// can apply to subsequent maps.
     /// </summary>
     public string GetRequiredItemForCurrentMap()
     {
@@ -251,8 +275,12 @@ public class ChapterTransitionTrigger : MonoBehaviour
 
         if (requiredItemForMaps == null || requiredItemForMaps.Length < 1)
             return null;
-        if (arrIndex < 0 || arrIndex >= requiredItemForMaps.Length)
+        if (arrIndex < 0)
             return null;
+
+        // If the array doesn't contain an entry for this map, fall back to the last defined entry.
+        if (arrIndex >= requiredItemForMaps.Length)
+            return requiredItemForMaps[requiredItemForMaps.Length - 1];
 
         return requiredItemForMaps[arrIndex];
     }

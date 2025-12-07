@@ -39,7 +39,6 @@ public class PlayerCombat : MonoBehaviour
     private Animator animator;
     private PlayerStats stats;
 
-    // Track the absolute time when ranged cooldown will end (Time.time). -999 means none.
     private float _rangedCooldownEndTime = -999f;
 
     void Start()
@@ -213,7 +212,7 @@ public class PlayerCombat : MonoBehaviour
             animator.SetTrigger(step.animationName);
 
         enemy.TakeDamage(damage);
-        Debug.Log($"[Combat] Used {step.skillName} → {damage} dmg to {enemy.gameObject.name}");
+        Debug.Log($"[Combat] Used {step.skillName} → {damage} damage to {enemy.gameObject.name}");
 
         comboCooldowns[index] = Time.time + step.cooldown;
         Debug.Log($"[PlayerCombat] Combo skill '{step.skillName}' started cooldown. index={index}, duration={step.cooldown:F2}s, endsAt={comboCooldowns[index]:F2}, now={Time.time:F2}");

@@ -188,6 +188,14 @@ public static class CloudSaveManager
                 // power_pill kept for compatibility
                 dto.inventory.power_pill = g.GetCollectedCount("power_pill");
             }
+
+            // Also persist player behavior counters if available
+            var pbt = PlayerBehaviorTracker.Instance;
+            if (pbt != null)
+            {
+                dto.meleeCount = pbt.meleeCount;
+                dto.rangedCount = pbt.rangedCount;
+            }
         }
         catch (System.Exception ex)
         {
