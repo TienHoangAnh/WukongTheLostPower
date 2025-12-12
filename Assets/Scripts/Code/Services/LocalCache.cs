@@ -201,7 +201,7 @@ public static class LocalCache
         public int hp;
         public int stamina;
         public float rotY;
-        public float[] pos; // x,y,z
+        public float[] pos;
     }
 
     [System.Serializable]

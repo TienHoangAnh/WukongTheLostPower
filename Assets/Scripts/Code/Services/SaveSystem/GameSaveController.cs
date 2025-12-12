@@ -50,8 +50,6 @@ public class GameSaveController : MonoBehaviour
 
         Debug.Log($"[GameSave] Collected {id} x{amount} (Total: {Data.collectedCounts[id]})");
 
-        // Nếu muốn sync cloud, có thể truyền cả count: 
-        // _ = FirebasePlayerService.I?.AddCollectedAsync(id, amount);
         try { FirebasePlayerService.I?.AddCollectedAsync(id); } catch { }
     }
 
@@ -68,10 +66,6 @@ public class GameSaveController : MonoBehaviour
         SaveSystem.Save(Data);
     }
 
-    /// <summary>
-    /// Reset collected items in-memory (and optionally persist) to prevent re-collect farming when simply reloading a scene.
-    /// This clears the runtime CollectedIds and counts and saves if requested.
-    /// </summary>
     public void ResetCollectedInMemory(bool save = true)
     {
         if (Data == null) Data = new SaveData();

@@ -9,12 +9,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d8941d65018bb9540ad63231041bd097, type: 3}
-  m_Name: ThoEnemyConfig
+  m_Script: {fileID: 11500000, guid: 9bb0b8e9c81f7a841a97e3e885ec2a12, type: 3}
+  m_Name: MocSimpleConfig
   m_EditorClassIdentifier: 
-  enemyId: tho_hoang_sa_thanh
-  displayName: "Th\u1ED5 Hoang Sa Th\xE0nh"
-  maxHP: 60
-  armor: 10
-  baseDamage: 5
+  enemyId: moc_thu_nhan
+  displayName: "M\u1ED9c Th\xFA Nh\xE2n"
+  maxHP: 80
+  armor: 8
+  baseDamage: 12
   attackCooldown: 1

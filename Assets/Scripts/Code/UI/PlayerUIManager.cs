@@ -3,17 +3,6 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 
-/// <summary>
-/// PlayerUIManager updates player HUD: health/stamina bars and quick item slots (HP/MP items).
-/// - Manages quick-slot counts directly (no global inventory).
-/// - Call `PlayerUIManager.I.AddItem(id,count)` when picking up an item.
-/// - Call `UseHpItem()` / `UseMpItem()` to consume an item and restore player stats.
-///
-/// NOTE: This component is intended to be scene-local and attached to a HUD Canvas
-/// (e.g. `HUD_Canvas` in each scene). The Player GameObject is persistent via
-/// DontDestroyOnLoad; the HUD should be recreated per scene and will rebind to the
-/// persistent PlayerStats when the scene loads.
-/// </summary>
 public class PlayerUIManager : MonoBehaviour
 {
     public static PlayerUIManager I { get; set; }
@@ -52,9 +41,6 @@ public class PlayerUIManager : MonoBehaviour
     private int hpCount = 0;
     private int mpCount = 0;
 
-    // -------------------------------------------------------------
-    // Initialization
-    // -------------------------------------------------------------
     void Awake()
     {
         // Warn if mistakenly attached to the Player GameObject
@@ -100,9 +86,6 @@ public class PlayerUIManager : MonoBehaviour
         RebindPlayer();
     }
 
-    // -------------------------------------------------------------
-    // Rebinding logic
-    // -------------------------------------------------------------
     private void RebindPlayer()
     {
         // Try common ways to find PlayerStats
@@ -200,9 +183,6 @@ public class PlayerUIManager : MonoBehaviour
         if (I == this) I = null;
     }
 
-    // -------------------------------------------------------------
-    // Update loop
-    // -------------------------------------------------------------
     void Update()
     {
         if (playerStats != null)
@@ -217,9 +197,6 @@ public class PlayerUIManager : MonoBehaviour
         UpdateSkillCooldowns();
     }
 
-    // -------------------------------------------------------------
-    // Icon refresh
-    // -------------------------------------------------------------
     private void RefreshIconsFromDatabase()
     {
         if (InventoryDatabase.I != null)
@@ -240,9 +217,6 @@ public class PlayerUIManager : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------------
-    // Add / Use Items
-    // -------------------------------------------------------------
     public void AddItem(string id, int count = 1)
     {
         if (string.IsNullOrEmpty(id) || count <= 0) return;
@@ -370,9 +344,6 @@ public class PlayerUIManager : MonoBehaviour
     public void OnClick_UseHpItem() => UseHpItem();
     public void OnClick_UseMpItem() => UseMpItem();
 
-    // -------------------------------------------------------------
-    // UI update
-    // -------------------------------------------------------------
     private void UpdateItemSlots()
     {
         // HP
@@ -412,9 +383,6 @@ public class PlayerUIManager : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------------
-    // Skill cooldown UI
-    // -------------------------------------------------------------
     private void UpdateSkillCooldowns()
     {
         if (playerCombat == null)
@@ -441,9 +409,6 @@ public class PlayerUIManager : MonoBehaviour
         }
     }
 
-    // -------------------------------------------------------------
-    // Public getters
-    // -------------------------------------------------------------
     public int GetHpCount() => hpCount;
     public int GetMpCount() => mpCount;
 }

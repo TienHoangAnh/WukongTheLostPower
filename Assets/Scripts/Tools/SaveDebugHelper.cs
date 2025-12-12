@@ -2,10 +2,6 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 
-/// <summary>
-/// Helper to trigger a save and print the resulting file content to the Console for debugging.
-/// Press F5 in Play mode to run.
-/// </summary>
 public class SaveDebugHelper : MonoBehaviour
 {
      [SerializeField] private string slotId = "slotA";

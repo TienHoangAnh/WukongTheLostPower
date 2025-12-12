@@ -192,11 +192,58 @@ public class MenuUIManager : MonoBehaviour
             Debug.LogWarning($"[MenuUI] Failed to persist local item save: {ex.Message}");
         }
 
+        // Suspend/disable objects in DontDestroyOnLoad to avoid duplicate audio listeners / persistent UI problems
+        // Keep LoadingScreen singleton active if present so it can perform scene transition.
+        TrySuspendDontDestroyRoots(preserveLoadingScreen: true);
+
         // Finally load main menu scene
         if (LoadingScreen.I != null)
             LoadingScreen.LoadScene("MainMenu");
         else
             SceneManager.LoadScene("MainMenu");
+    }
+
+    /// <summary>
+    /// Disable root GameObjects that live in the DontDestroyOnLoad scene.
+    /// - Disables AudioListener/AudioSource on those roots and then deactivates the root GameObject.
+    /// - Preserves LoadingScreen.I.gameObject if preserveLoadingScreen==true.
+    /// Note: deactivating this.MenuUIManager is safe because async Task will continue.
+    /// </summary>
+    private void TrySuspendDontDestroyRoots(bool preserveLoadingScreen = true)
+    {
+        var dnl = SceneManager.GetSceneByName("DontDestroyOnLoad");
+        if (!dnl.IsValid() || !dnl.isLoaded) return;
+
+        var roots = dnl.GetRootGameObjects();
+        foreach (var go in roots)
+        {
+            if (go == null) continue;
+
+            // Optionally preserve LoadingScreen singleton so it can run the transition
+            if (preserveLoadingScreen && LoadingScreen.I != null && go == LoadingScreen.I.gameObject)
+            {
+                Debug.Log("[MenuUI] Preserving LoadingScreen during suspend: " + go.name);
+                continue;
+            }
+
+            // Disable audio components first to avoid duplicate AudioListener issues
+            var listeners = go.GetComponentsInChildren<AudioListener>(true);
+            foreach (var l in listeners) { try { l.enabled = false; } catch { } }
+
+            var sources = go.GetComponentsInChildren<AudioSource>(true);
+            foreach (var s in sources) { try { s.enabled = false; } catch { } }
+
+            // Deactivate the root GameObject to "pause" DontDestroy objects
+            try
+            {
+                go.SetActive(false);
+                Debug.Log("[MenuUI] Suspended DontDestroy root: " + go.name);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[MenuUI] Failed to deactivate {go.name}: {ex.Message}");
+            }
+        }
     }
 
     // ===== Core: áp state độc quyền UI =====

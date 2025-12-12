@@ -17,7 +17,7 @@ public class UI_Toasts : MonoBehaviour
         if (Instance != null)
             Instance.StartCoroutine(Instance.ShowToast(message));
         else
-            Debug.Log("[Toast] " + message);
+            DebugHUD.ShowDebugMessage("[Toast] " + message, 3f);
     }
 
     IEnumerator ShowToast(string msg)

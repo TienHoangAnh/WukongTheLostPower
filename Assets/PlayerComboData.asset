@@ -36,4 +36,4 @@ MonoBehaviour:
     animationName: Scream
     damage: 0
     duration: 1.5
-    inputWindow: 2
+    inputWindow: 1

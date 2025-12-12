@@ -45,10 +45,6 @@ public class ChapterTransitionTrigger : MonoBehaviour
         }
         else if (Instance != this)
         {
-            // Copy per-scene configuration from the scene's trigger into the persistent instance
-            // BEFORE destroying this scene instance. This ensures the persistent Instance reflects
-            // the new scene's requiredItemForMaps even if the scene object's OnSceneLoaded handlers
-            // don't get a chance to run.
             try
             {
                 Instance.requiredTime = this.requiredTime;
@@ -90,8 +86,6 @@ public class ChapterTransitionTrigger : MonoBehaviour
             if (t == this)
                 continue;
 
-            // Copy per-scene configuration from the scene's trigger into the persistent instance
-            // so the persistent object reflects the new scene's required items and settings.
             try
             {
                 this.requiredTime = t.requiredTime;
@@ -99,9 +93,6 @@ public class ChapterTransitionTrigger : MonoBehaviour
                 this.unlockSkillId = t.unlockSkillId;
                 this.persistAcrossScenes = t.persistAcrossScenes;
 
-                // Always copy the per-scene requiredItemForMaps array into the persistent instance.
-                // Previously we only copied when the array had length >0 which caused the persistent
-                // trigger to keep the previous scene's values when the new scene had an empty array.
                 this.requiredItemForMaps = (t.requiredItemForMaps != null) ? (string[])t.requiredItemForMaps.Clone() : new string[0];
             }
             catch
@@ -210,9 +201,6 @@ public class ChapterTransitionTrigger : MonoBehaviour
         Debug.Log("[Transition] Player left zone.");
     }
 
-    /// <summary>
-    /// Handles transitioning to the next map, optionally unlocking a skill before loading the next scene.
-    /// </summary>
     private System.Collections.IEnumerator TransitionToNextMap()
     {
         Debug.Log("[Transition] Changing scene...");
@@ -227,8 +215,16 @@ public class ChapterTransitionTrigger : MonoBehaviour
         {
             Debug.Log("[Transition] Reached final map — show ending or credits.");
 
-            // Show a simple, visible notification in the DebugHUD so player knows they've won and there is no next map.
-            // DebugHUD will render messages on-screen via OnGUI.
+            // Ensure a DebugHUD exists so the message will be visible on-screen.
+            if (DebugHUD.Instance == null)
+            {
+                var go = new GameObject("DebugHUD_Auto");
+                go.AddComponent<DebugHUD>();
+                // Keep the automatic debug HUD across scene loads so the message persists long enough to be seen
+                Object.DontDestroyOnLoad(go);
+                Debug.Log("[Transition] Auto-created DebugHUD for end-of-game message.");
+            }
+
             DebugHUD.ShowDebugMessage("No more maps: You have restored the power of Wukong!", 10f);
 
             yield break;
@@ -261,12 +257,6 @@ public class ChapterTransitionTrigger : MonoBehaviour
             SceneManager.LoadScene(nextScene);
     }
 
-    /// <summary>
-    /// Returns the required collectible id for the current map, or null if none is defined.
-    /// Behavior: requiredItemForMaps is 0-based where element 0 == map 1. If the array is shorter than the
-    /// current map index, the code now falls back to the last defined element so a single-element array
-    /// can apply to subsequent maps.
-    /// </summary>
     public string GetRequiredItemForCurrentMap()
     {
         if (ChapterManager.Instance == null)
@@ -288,9 +278,6 @@ public class ChapterTransitionTrigger : MonoBehaviour
         return requiredItemForMaps[arrIndex];
     }
 
-    /// <summary>
-    /// Returns true if no required item is configured or the player has already collected it.
-    /// </summary>
     private bool HasRequiredItem()
     {
         var req = GetRequiredItemForCurrentMap();

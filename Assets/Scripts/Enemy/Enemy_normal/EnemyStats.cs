@@ -17,9 +17,6 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
     [Header("Config (Optional)")]
     public EnemySimpleConfig config;
 
-    // --------------------------------------------------------------
-    // 🧩 INIT
-    // --------------------------------------------------------------
     private void Start()
     {
         if (config != null)
@@ -32,9 +29,7 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
         animator = GetComponent<Animator>() ?? GetComponentInChildren<Animator>();
     }
 
-    // --------------------------------------------------------------
-    // ⚔️ COMBAT HELPERS
-    // --------------------------------------------------------------
+
     public float GetAttackDamage(float coef = 1f)
     {
         if (config != null)
@@ -51,9 +46,6 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
         return 1.0f;
     }
 
-    // --------------------------------------------------------------
-    // 💥 DAMAGE HANDLING
-    // --------------------------------------------------------------
     public void TakeDamage(float amount)
     {
         if (isDead) return;
@@ -72,9 +64,6 @@ public class EnemyStats : MonoBehaviour, ICharacter, IDamageable
     public void TakeDamage(int amount) => TakeDamage((float)amount);
     public void Heal(float amount) { }
 
-    // --------------------------------------------------------------
-    // ☠️ DEATH
-    // --------------------------------------------------------------
     public void Die()
     {
         if (isDead) return;

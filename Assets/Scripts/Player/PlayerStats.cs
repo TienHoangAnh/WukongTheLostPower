@@ -42,17 +42,14 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
 
     void Start()
     {
-        // Initialize current values only once (prevent reset when scene reloads)
         if (!_initialized)
         {
-            // If there is saved runtime player state, prefer that
             if (SaveRuntime.Current != null && SaveRuntime.Current.player != null
                 && (SaveRuntime.Current.playTimeSeconds > 0f || SaveRuntime.Current.player.hp > 0 || SaveRuntime.Current.player.stamina > 0))
             {
                 currentHealth = Mathf.Clamp(SaveRuntime.Current.player.hp, 0, (int)maxHealth);
                 currentStamina = Mathf.Clamp(SaveRuntime.Current.player.stamina, 0, (int)maxStamina);
 
-                // Restore position/rotation if available
                 if (SaveRuntime.Current.player.pos != null)
                 {
                     try
@@ -64,12 +61,10 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
                     catch { }
                 }
 
-                // If the loaded save has HP ==0, treat this as an accidental dead-state save and restore to full HP
                 if (currentHealth <=0f)
                 {
                     Debug.LogWarning("[PlayerStats] Loaded save contains HP=0 — restoring to maxHealth to avoid starting dead.");
                     currentHealth = maxHealth;
-                    // update runtime save so subsequent continues don't re-load HP=0
                     UpdateSaveRuntime();
                     try
                     {
@@ -78,12 +73,10 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
                     catch { }
                 }
 
-                // If loaded stamina is zero or negative, restore to max stamina as well so player can act immediately
                 if (currentStamina <=0f)
                 {
                     Debug.LogWarning("[PlayerStats] Loaded save contains Stamina=0 — restoring to maxStamina to avoid starting exhausted.");
                     currentStamina = maxStamina;
-                    // update runtime save so subsequent continues don't re-load stamina=0
                     UpdateSaveRuntime();
                     try
                     {
@@ -102,7 +95,6 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
 
             _initialized = true;
 
-            // Ensure runtime reflects initial values
             UpdateSaveRuntime();
         }
 
@@ -112,22 +104,42 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
+        if (SaveRuntime.Current != null && SaveRuntime.Current.player != null && SaveRuntime.Current.player.pos != null)
+        {
+            try
+            {
+                var v = SaveRuntime.Current.player.pos.ToVector3();
+                transform.position = v;
+                transform.rotation = Quaternion.Euler(0f, SaveRuntime.Current.player.rotY, 0f);
+            }
+            catch
+            {
+                ApplySceneAnchorsIfPresent();
+            }
+        }
+        else
+        {
+            ApplySceneAnchorsIfPresent();
+        }
+
+        UpdateSaveRuntime();
+    }
+
+    private void ApplySceneAnchorsIfPresent()
+    {
         if (PlayerAnchor.Current != null)
         {
             transform.position = PlayerAnchor.Current.position;
             transform.rotation = PlayerAnchor.Current.rotation;
-        }
-        else
-        {
-            var anchor = GameObject.Find("TransitionAnchor");
-            if (anchor != null)
-            {
-                transform.position = anchor.transform.position;
-                transform.rotation = anchor.transform.rotation;
-            }
+            return;
         }
 
-        UpdateSaveRuntime();
+        var anchor = GameObject.Find("TransitionAnchor");
+        if (anchor != null)
+        {
+            transform.position = anchor.transform.position;
+            transform.rotation = anchor.transform.rotation;
+        }
     }
 
     public void TakeDamage(float amount)
@@ -182,12 +194,10 @@ public class PlayerStats : MonoBehaviour, ICharacter, IDamageable
     {
         Debug.Log($"[PlayerStats] {gameObject.name} has died. Returning to MainMenu...");
 
-        // Increment death count in save runtime and persist
         try
         {
             if (SaveRuntime.Current == null) SaveRuntime.Current = new SaveSlotDTO();
             SaveRuntime.Current.deathCount = (SaveRuntime.Current.deathCount) +1;
-            // Fire-and-forget save
             _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
         }
         catch (System.Exception ex)

@@ -7,10 +7,6 @@ using Firebase.Auth;
 using Firebase.Firestore;
 using UnityEngine;
 
-/// <summary>
-/// Centralised access to FirebaseApp, FirebaseAuth, and FirebaseFirestore.
-/// Ensures dependencies are resolved, app is created from config, and an anonymous user is signed in.
-/// </summary>
 [Serializable]
 public static class FirebaseRuntime
 {
@@ -20,11 +16,6 @@ public static class FirebaseRuntime
 
     private static bool _ready;
 
-    /// <summary>
-    /// Initialises Firebase if not already ready.
-    /// Loads app config from StreamingAssets, creates or reuses the app instance,
-    /// sets up Auth and Firestore, and signs in anonymously if needed.
-    /// </summary>
     public static async Task EnsureInitializedAsync()
     {
         if (_ready)

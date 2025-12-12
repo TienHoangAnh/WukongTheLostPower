@@ -6,10 +6,6 @@ using UnityEngine;
 using Firebase.Firestore;
 #endif
 
-///
-/// cloud save manager with local-first strategy
-/// 
-/// Local-first save orchestrator (newest-wins via lastSavedAtUnix in ms)
 public static class CloudSaveManager
 {
     public static string CurrentSlotId = "slotA";
@@ -74,7 +70,6 @@ public static class CloudSaveManager
     public static bool TryLoadLocal(out SaveSlotDTO dto) =>
         LocalCache.TryRead(CurrentSlotId, out dto);
 
-    // ---------- helpers ----------
 
     private static void TouchTimestamp(SaveSlotDTO dto)
     {
@@ -162,8 +157,6 @@ public static class CloudSaveManager
     }
 #endif
 
-    // Copies local GameSaveController collected counts into the save DTO's inventory and collectedCounts.
-    // This ensures consumable/item counts (holy_water, elixir, etc.) are persisted when saving.
     private static void SyncInventoryFromLocal(SaveSlotDTO dto)
     {
         if (dto == null) return;

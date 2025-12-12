@@ -66,7 +66,7 @@ public class PlayerCombat : MonoBehaviour
             stats.RecoverStamina(Time.deltaTime * 2f);
     }
 
-    // ================== RANGED (J) ==================
+    //ranged attack (J)
     void TryFireRanged()
     {
         if (!rangedOnCooldown)
@@ -179,7 +179,7 @@ public class PlayerCombat : MonoBehaviour
         Debug.Log("[PlayerCombat] Ranged cooldown ended.");
     }
 
-    // ================== COMBO (Q/E/R) ==================
+    // COMBO (Q/E/R)
     void TryUseCombo(int index)
     {
         if (comboData == null || comboData.comboSteps == null) return;
@@ -210,6 +210,8 @@ public class PlayerCombat : MonoBehaviour
 
         if (animator != null && !string.IsNullOrEmpty(step.animationName))
             animator.SetTrigger(step.animationName);
+
+        behaviorTracker?.RecordMeleeAttack();
 
         enemy.TakeDamage(damage);
         Debug.Log($"[Combat] Used {step.skillName} → {damage} damage to {enemy.gameObject.name}");

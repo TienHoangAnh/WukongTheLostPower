@@ -79,6 +79,8 @@ public class EnemyAIContext : MonoBehaviour
 
     void Start()
     {
+        _stats = GetComponent<EnemyStats>() ?? GetComponentInChildren<EnemyStats>();
+
         if (agent != null)
         {
             agent.speed = chaseSpeed;
@@ -163,15 +165,21 @@ public class EnemyAIContext : MonoBehaviour
         int dmg = Mathf.RoundToInt(_stats != null ? _stats.GetAttackDamage(coef) : (lastAttackIndex == 2 ? 5 : 2));
 
         bool applied = false;
-        foreach (var col in hits)
+        foreach (var colider in hits)
         {
-            if (col == null) continue;
+            if (colider == null) continue;
 
-            var dmgable = col.GetComponentInParent<IDamageable>();
-            if (dmgable != null) { dmgable.TakeDamage(dmg); applied = true; Debug.Log($"[EnemyAI] Hit(IDamageable) dmg={dmg}, atk={lastAttackIndex}"); break; }
+            var dmgable = colider.GetComponentInParent<IDamageable>();
+            if (dmgable != null) { 
+                dmgable.TakeDamage(dmg); applied = true; 
+                Debug.Log($"[EnemyAI] Hit(IDamageable) dmg={dmg}, atk={lastAttackIndex}"); break; 
+            }
 
-            var ch = col.GetComponentInParent<ICharacter>();
-            if (ch != null) { ch.TakeDamage(dmg); applied = true; Debug.Log($"[EnemyAI] Hit(ICharacter) dmg={dmg}, atk={lastAttackIndex}"); break; }
+            var ch = colider.GetComponentInParent<ICharacter>();
+            if (ch != null) { 
+                ch.TakeDamage(dmg); applied = true; 
+                Debug.Log($"[EnemyAI] Hit(ICharacter) dmg={dmg}, atk={lastAttackIndex}"); break; 
+            }
         }
 
         if (!applied && player != null)

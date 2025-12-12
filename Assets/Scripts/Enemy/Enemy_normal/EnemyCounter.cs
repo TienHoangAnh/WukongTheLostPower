@@ -55,8 +55,7 @@ public class EnemyCounter : MonoBehaviour
 
             if (remaining == 0)
             {
-                // Do NOT unlock skill here; the transition trigger will handle unlocking when player stands in zone.
-                // Instead, enable the appropriate transition trigger. Prefer persistent singleton if present.
+
                 if (ChapterTransitionTrigger.Instance != null)
                 {
                     ChapterTransitionTrigger.Instance.gameObject.SetActive(true);

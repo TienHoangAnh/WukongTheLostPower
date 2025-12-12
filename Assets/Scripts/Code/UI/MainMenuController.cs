@@ -14,7 +14,7 @@ public class MainMenuController : MonoBehaviour
     [SerializeField] private GameObject buttonsPanel;
     [SerializeField] private TMP_Text warningText;
 
-    // Map index is 1-based to match your design (1..N)
+    // Map index is1-based to match your design (1..N)
     [Header("Maps (1-based)")]
     [SerializeField] private string[] mapSceneNames = {"Map1", "Map2", "Map3", "Map4", "Map5" };
 
@@ -80,8 +80,6 @@ public class MainMenuController : MonoBehaviour
             // Local-first load or create
             var dto = await CloudSaveManager.TryLoadOrCreate("slotA", playerName);
 
-            // Ensure the save DTO uses the entered player name for this new run
-            // Overwrite any existing playerName in the slot when creating a New Game
             dto.playerName = playerName;
 
             // Start from map1 for a new game
@@ -89,8 +87,8 @@ public class MainMenuController : MonoBehaviour
 
             // Reset hp/stamina to full for starting the run, but keep unlocked skills
             if (dto.player == null) dto.player = new PlayerStateDTO();
-            dto.player.hp = 100;
-            dto.player.stamina = 100;
+            dto.player.hp =100;
+            dto.player.stamina =100;
 
             // Clear unlocked skills and cooldowns for a new game so the player starts fresh
             dto.skillsUnlocked = new System.Collections.Generic.List<string>();
@@ -99,9 +97,9 @@ public class MainMenuController : MonoBehaviour
             // Reset inventory / collected counts / progression fields
             dto.inventory = new InventorySnapshot();
             dto.collectedCounts = new System.Collections.Generic.Dictionary<string, int>();
-            dto.essencesCollected = 0;
-            dto.playTimeSeconds = 0f;
-            dto.deathCount = 0;
+            dto.essencesCollected =0;
+            dto.playTimeSeconds =0f;
+            dto.deathCount =0;
             dto.bossesDefeated = new System.Collections.Generic.List<string>();
             dto.deadEnemies = new System.Collections.Generic.List<string>();
             dto.worldFlags = new System.Collections.Generic.Dictionary<string, bool>();
@@ -111,89 +109,89 @@ public class MainMenuController : MonoBehaviour
 
             // Ensure Firebase/runtime is ready and persist the new slot immediately
 #if FIREBASE_ENABLED
-            try
-            {
-                await FirebaseRuntime.EnsureInitializedAsync();
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning($"[MainMenu] Firebase init failed when saving new game: {e.Message}");
-            }
+ try
+ {
+ await FirebaseRuntime.EnsureInitializedAsync();
+ }
+ catch (Exception e)
+ {
+ Debug.LogWarning($"[MainMenu] Firebase init failed when saving new game: {e.Message}");
+ }
 #endif
-            Debug.Log("[MainMenu] Saving new slot to local/cloud before loading Map1...");
-            await CloudSaveManager.SaveNow(dto);
-            
-            // Reset local GameSaveController (collected items) if present so runtime/local save mirrors cleared DTO
-            try
-            {
-                var g = GameSaveController.I;
-                if (g != null)
-                {
-                    g.Data.collectedCounts = new System.Collections.Generic.Dictionary<string, int>();
-                    g.Data.collectedIds = new System.Collections.Generic.List<string>();
-                    g.CollectedIds.Clear();
-                    SaveSystem.Save(g.Data);
+ Debug.Log("[MainMenu] Saving new slot to local/cloud before loading Map1...");
+ await CloudSaveManager.SaveNow(dto);
+ 
+ // Reset local GameSaveController (collected items) if present so runtime/local save mirrors cleared DTO
+ try
+ {
+ var g = GameSaveController.I;
+ if (g != null)
+ {
+ g.Data.collectedCounts = new System.Collections.Generic.Dictionary<string, int>();
+ g.Data.collectedIds = new System.Collections.Generic.List<string>();
+ g.CollectedIds.Clear();
+ SaveSystem.Save(g.Data);
 #if UNITY_EDITOR
-                    Debug.Log("[MainMenu] Cleared local GameSaveController data for New Game.");
+ Debug.Log("[MainMenu] Cleared local GameSaveController data for New Game.");
 #endif
-                }
+ }
 
-                // Clear runtime InventoryManager contents if present
-                var inv = InventoryManager.I;
-                if (inv != null)
-                {
-                    var all = inv.GetAll();
-                    var keys = new System.Collections.Generic.List<string>(all.Keys);
-                    foreach (var k in keys)
-                    {
-                        int count = inv.GetCount(k);
-                        if (count > 0)
-                            inv.UseItem(k, count);
-                    }
-                }
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[MainMenu] Failed to clear local inventory runtime: {ex.Message}");
-            }
+ // Clear runtime InventoryManager contents if present
+ var inv = InventoryManager.I;
+ if (inv != null)
+ {
+ var all = inv.GetAll();
+ var keys = new System.Collections.Generic.List<string>(all.Keys);
+ foreach (var k in keys)
+ {
+ int count = inv.GetCount(k);
+ if (count >0)
+ inv.UseItem(k, count);
+ }
+ }
+ }
+ catch (System.Exception ex)
+ {
+ Debug.LogWarning($"[MainMenu] Failed to clear local inventory runtime: {ex.Message}");
+ }
 
-            // If a PlayerSkillManager exists (for example attached to a persistent Player), instruct it to reload from the cleared save
-            var skillMgr = FindFirstObjectByType<PlayerSkillManager>();
-            if (skillMgr != null)
-            {
-                try { skillMgr.ReloadFromSaveRuntime(); }
-                catch { /* non-fatal: older versions may not have the method */ }
-            }
+ // If a PlayerSkillManager exists (for example attached to a persistent Player), instruct it to reload from the cleared save
+ var skillMgr = FindFirstObjectByType<PlayerSkillManager>();
+ if (skillMgr != null)
+ {
+ try { skillMgr.ReloadFromSaveRuntime(); }
+ catch { /* non-fatal: older versions may not have the method */ }
+ }
 
-            // Ensure persistent PlayerStats (if present) reflect the freshly reset HP/Stamina
-            try
-            {
-                var ps = PlayerStats.Instance;
-                if (ps != null)
-                {
-                    ps.SetStats(dto.player.hp, dto.player.stamina);
-                }
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning($"[MainMenu] Failed to reset PlayerStats for New Game: {ex.Message}");
-            }
+ // Ensure persistent PlayerStats (if present) reflect the freshly reset HP/Stamina
+ try
+ {
+ var ps = PlayerStats.Instance;
+ if (ps != null)
+ {
+ ps.SetStats(dto.player.hp, dto.player.stamina);
+ }
+ }
+ catch (System.Exception ex)
+ {
+ Debug.LogWarning($"[MainMenu] Failed to reset PlayerStats for New Game: {ex.Message}");
+ }
 
-            string scene = SceneNameForMap(1);
-            PlayerPrefs.SetString(LastSaveKey, scene);
-            PlayerPrefs.Save();
+ string scene = SceneNameForMap(1);
+ PlayerPrefs.SetString(LastSaveKey, scene);
+ PlayerPrefs.Save();
 
-            // Ensure ChapterManager reflects the chosen starting map
-            EnsureChapterIsSetOnNextLoad(1);
+ // Ensure ChapterManager reflects the chosen starting map
+ EnsureChapterIsSetOnNextLoad(1);
 
-            if (LoadingScreen.I != null) LoadingScreen.LoadScene(scene); else SceneManager.LoadScene(scene);
-        }
-        catch (Exception ex)
-        {
-            Debug.LogError($"[MainMenu] NewGame failed: {ex}");
-            FallbackToMap1();
-        }
-    }
+ if (LoadingScreen.I != null) LoadingScreen.LoadScene(scene); else SceneManager.LoadScene(scene);
+ }
+ catch (Exception ex)
+ {
+ Debug.LogError($"[MainMenu] NewGame failed: {ex}");
+ FallbackToMap1();
+ }
+ }
 
     // -------- CONTINUE --------
     private async Task ContinueAsync(string playerName)
@@ -223,16 +221,16 @@ public class MainMenuController : MonoBehaviour
             // Ensure player state exists
             if (dto.player == null) dto.player = new PlayerStateDTO();
 
-            int targetMap = (dto.currentMap <= 0) ? 1 : dto.currentMap;
+            int targetMap = (dto.currentMap <=0) ?1 : dto.currentMap;
 
-            // If the saved player HP is 0 (player had died and was returned to main menu),
+            // If the saved player HP is0 (player had died and was returned to main menu),
             // resurrect the player: reset hp/stamina to full and clear inventory/collected counts
-            if (dto.player.hp <= 0)
+            if (dto.player.hp <=0)
             {
-                Debug.Log("[MainMenu] Detected save with player HP = 0. Resetting HP/Stamina to full and clearing inventory to avoid item abuse.");
+                Debug.Log("[MainMenu] Detected save with player HP =0. Resetting HP/Stamina to full and clearing inventory to avoid item abuse.");
 
-                dto.player.hp = 100;
-                dto.player.stamina = 100;
+                dto.player.hp =100;
+                dto.player.stamina =100;
 
                 // Clear inventory snapshot
                 dto.inventory = new InventorySnapshot();
@@ -241,7 +239,7 @@ public class MainMenuController : MonoBehaviour
                 dto.collectedCounts = new System.Collections.Generic.Dictionary<string, int>();
 
                 // Reset map to first when resurrecting to avoid jumping due to stale ChapterManager/currentMap
-                dto.currentMap = 1;
+                dto.currentMap =1;
 
                 // Persist the updated dto so continue starts from a clean resurrected state
                 SaveRuntime.Current = dto;
@@ -276,12 +274,28 @@ public class MainMenuController : MonoBehaviour
                 }
 
                 // recompute targetMap in case dto.currentMap changed above
-                targetMap = (dto.currentMap <= 0) ? 1 : dto.currentMap;
+                targetMap = (dto.currentMap <=0) ?1 : dto.currentMap;
             }
             else
             {
                 // Normal continue — restore saved hp/stamina and items
                 SaveRuntime.Current = dto;
+
+                // Ensure runtime systems pick up the loaded DTO once the target scene has been loaded.
+                void OnApply(Scene s, LoadSceneMode m)
+                {
+                    try
+                    {
+                        SyncRuntimeFromDto(dto);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogWarning($"[MainMenu] Failed to apply save DTO to runtime after scene load: {ex.Message}");
+                    }
+                    SceneManager.sceneLoaded -= OnApply;
+                }
+
+                SceneManager.sceneLoaded += OnApply;
             }
 
             string sceneName = SceneNameForMap(targetMap);
@@ -301,10 +315,10 @@ public class MainMenuController : MonoBehaviour
             if (CloudSaveManager.TryLoadLocal(out var local))
             {
                 SaveRuntime.Current = local;
-                string sceneName = SceneNameForMap(local.currentMap <= 0 ? 1 : local.currentMap);
+                string sceneName = SceneNameForMap(local.currentMap <=0 ?1 : local.currentMap);
 
                 // Ensure chapter sync
-                EnsureChapterIsSetOnNextLoad(local.currentMap <= 0 ? 1 : local.currentMap);
+                EnsureChapterIsSetOnNextLoad(local.currentMap <=0 ?1 : local.currentMap);
 
                 if (LoadingScreen.I != null) LoadingScreen.LoadScene(sceneName); else SceneManager.LoadScene(sceneName);
                 return;
@@ -322,8 +336,6 @@ public class MainMenuController : MonoBehaviour
         }
     }
 
-    // Helper: ensure ChapterManager.currentMap matches the map we're about to load.
-    // If ChapterManager already exists, set immediately. Otherwise set on next scene load.
     private void EnsureChapterIsSetOnNextLoad(int mapIndex)
     {
         if (ChapterManager.Instance != null)
@@ -347,7 +359,118 @@ public class MainMenuController : MonoBehaviour
         SceneManager.sceneLoaded += OnLoaded;
     }
 
-    // -------- HELPERS --------
+    // Sync DTO into runtime systems after scene load
+    private void SyncRuntimeFromDto(SaveSlotDTO dto)
+    {
+        if (dto == null) return;
+
+        //1) Sync GameSaveController / local item save
+        try
+        {
+            if (GameSaveController.I != null)
+            {
+                var g = GameSaveController.I;
+
+                // Reset in-memory then mark collected from DTO
+                g.ResetCollectedInMemory(false);
+
+                if (dto.collectedCounts != null)
+                {
+                    foreach (var kv in dto.collectedCounts)
+                    {
+                        if (kv.Value <=0) continue;
+                        // MarkCollected will update Data and persist via SaveSystem.Save
+                        g.MarkCollected(kv.Key, kv.Value);
+                    }
+                }
+            }
+            else
+            {
+                // Persist a local item save file so other systems can pick it up later
+                var d = new SaveData();
+                d.collectedCounts = dto.collectedCounts != null ? new System.Collections.Generic.Dictionary<string, int>(dto.collectedCounts) : new System.Collections.Generic.Dictionary<string, int>();
+                d.collectedIds = new System.Collections.Generic.List<string>();
+                if (dto.collectedCounts != null)
+                {
+                    foreach (var kv in dto.collectedCounts)
+                    if (kv.Value >0 && !d.collectedIds.Contains(kv.Key)) d.collectedIds.Add(kv.Key);
+                }
+                SaveSystem.Save(d);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[MainMenu] Failed to sync GameSaveController from DTO: {ex.Message}");
+        }
+
+        //2) Sync InventoryManager runtime counts
+        try
+        {
+            var inv = InventoryManager.I;
+            if (inv != null && dto.collectedCounts != null)
+            {
+                foreach (var kv in dto.collectedCounts)
+                {
+                    int desired = kv.Value;
+                    int current = inv.GetCount(kv.Key);
+                    if (desired > current) inv.AddItem(kv.Key, desired - current);
+                    else if (desired < current) inv.UseItem(kv.Key, current - desired);
+                }
+
+                // Also ensure common quick-items match snapshot
+                if (dto.inventory != null)
+                {
+                    void Ensure(string id, int val)
+                    {
+                        int cur = inv.GetCount(id);
+                        if (val > cur) inv.AddItem(id, val - cur);
+                        else if (val < cur) inv.UseItem(id, cur - val);
+                    }
+
+                    Ensure("holy_water", dto.inventory.holy_water);
+                    Ensure("elixir", dto.inventory.elixir);
+                    Ensure("natural_energy", dto.inventory.natural_energy);
+                    Ensure("power_pill", dto.inventory.power_pill);
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[MainMenu] Failed to sync InventoryManager from DTO: {ex.Message}");
+        }
+
+        //3) Restore player stats/position immediately if a persistent PlayerStats exists
+        try
+        {
+            var ps = PlayerStats.Instance;
+            if (ps != null && dto.player != null)
+            {
+                ps.SetStats(dto.player.hp, dto.player.stamina);
+                if (dto.player.pos != null)
+                {
+                    var v = dto.player.pos.ToVector3();
+                    ps.transform.position = v;
+                    ps.transform.rotation = Quaternion.Euler(0f, dto.player.rotY,0f);
+                }
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[MainMenu] Failed to restore PlayerStats from DTO: {ex.Message}");
+        }
+
+        //4) Reload PlayerSkillManager bindings/cooldowns
+        try
+        {
+            var skillMgr = FindFirstObjectByType<PlayerSkillManager>();
+            if (skillMgr != null) skillMgr.ReloadFromSaveRuntime();
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[MainMenu] Failed to reload PlayerSkillManager from DTO: {ex.Message}");
+        }
+    }
+
     private void ShowNamePanel()
     {
         if (buttonsPanel) buttonsPanel.SetActive(false);
@@ -387,9 +510,13 @@ public class MainMenuController : MonoBehaviour
 
     private string SceneNameForMap(int mapIndex)
     {
-        if (mapIndex >= 0 && mapIndex < mapSceneNames.Length)
+        // mapIndex is treated as1-based. Convert to zero-based array index safely.
+        if (mapSceneNames == null || mapSceneNames.Length ==0) return "Map1";
+
+        int zeroBased = mapIndex -1;
+        if (zeroBased >=0 && zeroBased < mapSceneNames.Length)
         {
-            string s = mapSceneNames[mapIndex];
+            var s = mapSceneNames[zeroBased];
             if (!string.IsNullOrEmpty(s)) return s;
         }
         return "Map1";
@@ -402,19 +529,16 @@ public class MainMenuController : MonoBehaviour
         if (LoadingScreen.I != null) LoadingScreen.LoadScene("Map1"); else SceneManager.LoadScene("Map1");
     }
 
-    /// <summary>
-    /// Gọi khi muốn lưu checkpoint theo scene hiện tại. 
-    /// </summary>
     public void SaveGame(string sceneName)
     {
         PlayerPrefs.SetString(LastSaveKey, sceneName);
         PlayerPrefs.Save();
 
-        // Tìm index của scene trong mapSceneNames để cập nhật currentMap
-        int idx = 1;
-        for (int i = 1; i < mapSceneNames.Length; i++)
-            if (string.Equals(mapSceneNames[i], sceneName, StringComparison.OrdinalIgnoreCase))
-            { idx = i; break; }
+        // Tìm index của scene trong mapSceneNames để cập nhật currentMap (1-based)
+        int idx =1; // default to map1
+        for (int i =0; i < mapSceneNames.Length; i++)
+        if (string.Equals(mapSceneNames[i], sceneName, StringComparison.OrdinalIgnoreCase))
+ { idx = i +1; break; }
 
         if (SaveRuntime.Current == null) SaveRuntime.Current = new SaveSlotDTO();
         SaveRuntime.Current.currentMap = idx;

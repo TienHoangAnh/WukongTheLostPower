@@ -9,12 +9,12 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d8941d65018bb9540ad63231041bd097, type: 3}
-  m_Name: HoaEnemyConfig
+  m_Script: {fileID: 11500000, guid: 9bb0b8e9c81f7a841a97e3e885ec2a12, type: 3}
+  m_Name: HoaSimpleConfig
   m_EditorClassIdentifier: 
   enemyId: hoa_diem_nhan
   displayName: "H\u1ECFa Di\u1EC7m Nh\xE2n"
-  maxHP: 60
-  armor: 10
-  baseDamage: 5
+  maxHP: 120
+  armor: 9
+  baseDamage: 12
   attackCooldown: 1

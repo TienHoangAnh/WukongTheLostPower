@@ -9,7 +9,7 @@ public class ChapterManager : MonoBehaviour
     public int currentMap = 1;
 
     [Tooltip("Total map of game")]
-    public int maxMap = 5;
+    public int maxMap = 6;
 
     void Awake()
     {
@@ -40,6 +40,23 @@ public class ChapterManager : MonoBehaviour
         {
             currentMap++;
             Debug.Log($"[ChapterManager] Moved to Map {currentMap}");
+
+            // Persist chapter/map into runtime save so SaveSlotDTO reflects current progress
+            try
+            {
+                SaveRuntime.EnsureInitialized();
+                if (SaveRuntime.Current != null)
+                {
+                    SaveRuntime.Current.currentMap = currentMap;
+                    SaveRuntime.Current.chapterIndex = currentMap;
+                    // Fire-and-forget cloud/local save to persist the change
+                    _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning($"[ChapterManager] Failed to persist chapter change: {ex.Message}");
+            }
         }
         else
         {
@@ -51,5 +68,20 @@ public class ChapterManager : MonoBehaviour
     {
         currentMap = 1;
         Debug.Log("[ChapterManager] Reset to Map1");
+
+        try
+        {
+            SaveRuntime.EnsureInitialized();
+            if (SaveRuntime.Current != null)
+            {
+                SaveRuntime.Current.currentMap = currentMap;
+                SaveRuntime.Current.chapterIndex = currentMap;
+                _ = CloudSaveManager.SaveNow(SaveRuntime.Current);
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning($"[ChapterManager] Failed to persist chapter reset: {ex.Message}");
+        }
     }
 }

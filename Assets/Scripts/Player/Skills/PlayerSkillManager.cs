@@ -4,9 +4,7 @@ using UnityEngine;
 
 public class PlayerSkillManager : MonoBehaviour
 {
-    /// <summary>
-    /// Runtime mapping from key slot (1..5) to unlocked skill implementations.
-    /// </summary>
+
     private readonly Dictionary<int, ISkill> unlockedSkills = new();
 
     private PlayerMovementContext context;
@@ -14,7 +12,7 @@ public class PlayerSkillManager : MonoBehaviour
     [System.Serializable]
     public class SkillEntry
     {
-        public string id;          // Unique skill id (e.g. "Skill_Heal")
+        public string id;          // Unique skill id (e.g. "heal")
         public Object behaviour;   // Object implementing ISkill (ScriptableObject or MonoBehaviour)
     }
 
@@ -23,14 +21,8 @@ public class PlayerSkillManager : MonoBehaviour
     [SerializeField]
     private List<SkillEntry> skillCatalog = new();
 
-    /// <summary>
-    /// Lookup from skill id string to ISkill instance.
-    /// </summary>
     private readonly Dictionary<string, ISkill> idToSkill = new();
 
-    /// <summary>
-    /// Valid key slots for skills.
-    /// </summary>
     private static readonly int[] ValidKeys = { 1, 2, 3, 4, 5 };
 
     [Header("Autosave")]
@@ -75,10 +67,6 @@ public class PlayerSkillManager : MonoBehaviour
         HandleKeyUse(5, KeyCode.Alpha5);
     }
 
-    /// <summary>
-    /// Reload unlocked skills and cooldowns from SaveRuntime.Current into the runtime mapping.
-    /// Safe to call at runtime after SaveRuntime.Current changes (e.g. New Game resets).
-    /// </summary>
     public void ReloadFromSaveRuntime()
     {
         // Ensure structures exist
@@ -136,9 +124,6 @@ public class PlayerSkillManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Handles key press to activate a skill bound to the specified slot.
-    /// </summary>
     private void HandleKeyUse(int key, KeyCode keyCode)
     {
         if (!Input.GetKeyDown(keyCode))
@@ -154,10 +139,6 @@ public class PlayerSkillManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Unlocks a skill by id, assigns it to the first free key (1..5), and schedules an autosave.
-    /// Typically called from chapter transition logic.
-    /// </summary>
     public void UnlockSkillById(string skillId)
     {
         if (string.IsNullOrWhiteSpace(skillId))
@@ -210,9 +191,6 @@ public class PlayerSkillManager : MonoBehaviour
         DebouncedSave();
     }
 
-    /// <summary>
-    /// Manually assigns a specific skill id to a specific key and persists the change.
-    /// </summary>
     public void AssignSkillToKey(int key, string skillId)
     {
         if (System.Array.IndexOf(ValidKeys, key) < 0)
@@ -238,9 +216,6 @@ public class PlayerSkillManager : MonoBehaviour
         DebouncedSave();
     }
 
-    /// <summary>
-    /// Returns a list of ids for all currently unlocked skills.
-    /// </summary>
     public List<string> GetUnlockedIds()
     {
         var ids = new List<string>();
@@ -269,9 +244,6 @@ public class PlayerSkillManager : MonoBehaviour
         return ids;
     }
 
-    /// <summary>
-    /// Ensures SaveRuntime and its skillsUnlocked list are initialised.
-    /// </summary>
     private void EnsureSaveLists()
     {
         if (SaveRuntime.Current == null)
@@ -281,9 +253,6 @@ public class PlayerSkillManager : MonoBehaviour
             SaveRuntime.Current.skillsUnlocked = new List<string>();
     }
 
-    /// <summary>
-    /// Finds the skill id corresponding to a given ISkill instance using the catalog.
-    /// </summary>
     private string FindIdByInstance(ISkill skill)
     {
         foreach (var entry in skillCatalog)
@@ -298,9 +267,6 @@ public class PlayerSkillManager : MonoBehaviour
         return null;
     }
 
-    /// <summary>
-    /// Starts or restarts a debounced autosave coroutine.
-    /// </summary>
     private void DebouncedSave()
     {
         if (saveCo != null)
@@ -309,9 +275,6 @@ public class PlayerSkillManager : MonoBehaviour
         saveCo = StartCoroutine(CoDebouncedSave());
     }
 
-    /// <summary>
-    /// Waits for a short delay, then saves the current SaveRuntime state via CloudSaveManager.
-    /// </summary>
     private IEnumerator CoDebouncedSave()
     {
         float delay = autosaveDebounce > 0 ? autosaveDebounce : 1.0f;

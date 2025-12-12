@@ -3,7 +3,6 @@
 [RequireComponent(typeof(CharacterController))]
 public class PlayerMovementContext : MonoBehaviour
 {
-    // ===================== MOVEMENT =====================
     [Header("Movement")]
     public float moveSpeed = 1f;
     public float runSpeed = 10f;
@@ -14,11 +13,9 @@ public class PlayerMovementContext : MonoBehaviour
     public Vector3 velocity;
     [HideInInspector] public float lastDashTime = -999f;
 
-    // ===================== CAMERA =====================
     [Header("Camera")]
     public Transform cameraDirection;
 
-    // ===================== GROUND CHECK =====================
     [Header("Ground Check")]
     public Transform groundCheck;
     public float groundDistance = 0.4f;
@@ -27,7 +24,6 @@ public class PlayerMovementContext : MonoBehaviour
 
     [HideInInspector] public CharacterController characterController;
 
-    // ===================== COMBAT =====================
     [Header("Combat")]
     public ComboData comboData;
     public LayerMask enemyLayer;
@@ -35,19 +31,15 @@ public class PlayerMovementContext : MonoBehaviour
 
     private IMovementState currentState;
 
-    // ===================== ANIMATION =====================
     [Header("Animation")]
     public Animator animator;
 
-    // ===================== SAVE RUNTIME =====================
     [Header("Save Runtime (optional)")]
     [Tooltip("Update player position to SaveRuntime every X seconds (0 = every frame)")]
     [SerializeField] private float saveRuntimeInterval = 0.5f;
     private float _saveRuntimeTimer;
 
-    // ================================================================
-    // LIFECYCLE
-    // ================================================================
+
     void Start()
     {
         characterController = GetComponent<CharacterController>();
@@ -95,9 +87,6 @@ public class PlayerMovementContext : MonoBehaviour
         Patch_UpdateSaveRuntimeTick();
     }
 
-    // ================================================================
-    // STATE MACHINE API
-    // ================================================================
     public void SwitchState(IMovementState newState)
     {
         currentState?.ExitState(this);
@@ -126,9 +115,6 @@ public class PlayerMovementContext : MonoBehaviour
         SwitchState(new TakeDamageState());
     }
 
-    // ================================================================
-    // ACTION HELPERS
-    // ================================================================
     public void HandleMovement()
     {
         float h = Input.GetAxis("Horizontal");
@@ -171,9 +157,6 @@ public class PlayerMovementContext : MonoBehaviour
         }
     }
 
-    // ================================================================
-    // SAVE-RUNTIME TICK
-    // ================================================================
     private void Patch_UpdateSaveRuntimeTick()
     {
         if (SaveRuntime.Current == null) return;
@@ -197,9 +180,6 @@ public class PlayerMovementContext : MonoBehaviour
         }
     }
 
-    // ================================================================
-    // COMBAT DAMAGE HANDLER
-    // ================================================================
     public void PerformAttack(float damage)
     {
         Vector3 origin = transform.position + transform.forward * 1f;

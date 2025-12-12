@@ -20,13 +20,14 @@ public class EnemySpawner : MonoBehaviour
             Debug.LogWarning($"[{name}] Missing enemyPrefab");
             return;
         }
+
         if (alive != null) return;
+
         alive = Instantiate(enemyPrefab, transform.position, transform.rotation);
-        // nếu dùng hệ thống đếm kill:
+
         var deathHook = alive.GetComponent<OnDeathNotify>() ?? alive.AddComponent<OnDeathNotify>();
         deathHook.onDeath += () => {
             alive = null;
-            // ví dụ: QuestTracker.Instance?.OnEnemyKilled();
         };
     }
 }

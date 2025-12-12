@@ -466,6 +466,24 @@ public class DebugHUD : MonoBehaviour
         int mapIndex = ChapterManager.Instance != null ? ChapterManager.Instance.currentMap : -1;
         GUILayout.Label($"<b>Playtime: {FormatTime(_playTimeSeconds)}</b> <b>Map: {mapIndex}</b> <b>Main Task</b>");
 
+        // If this is the final map, show a clear victory message and skip other debug labels
+        if (ChapterManager.Instance != null && !ChapterManager.Instance.HasNextMap())
+        {
+            GUIStyle victoryStyle = new GUIStyle(GUI.skin.label);
+            victoryStyle.fontStyle = FontStyle.Bold;
+            victoryStyle.alignment = TextAnchor.MiddleCenter;
+            victoryStyle.fontSize = 16;
+            victoryStyle.normal.textColor = Color.yellow;
+            victoryStyle.richText = false;
+
+            GUILayout.Space(6);
+            GUILayout.Label("Wukong has regained his strength. Complete the final challenge to win.!", victoryStyle);
+            GUILayout.Space(6);
+
+            GUILayout.EndArea();
+            return;
+        }
+
         foreach (var m in _messages)
         {
             GUILayout.Label(m.text);
@@ -490,13 +508,13 @@ public class DebugHUD : MonoBehaviour
         GUILayout.Label("You need to destroy all enemies to find power pieces.");
 
         // Show playtime and death count
-        int deaths = SaveRuntime.Current != null ? SaveRuntime.Current.deathCount :0;
+        int deaths = SaveRuntime.Current != null ? SaveRuntime.Current.deathCount : 0;
         GUILayout.Label($"Deaths: {deaths}");
 
         // Show melee/ranged attack counts and inferred playstyle
         var pb = PlayerBehaviorTracker.Instance;
-        int meleeAtt =0;
-        int rangedAtt =0;
+        int meleeAtt = 0;
+        int rangedAtt = 0;
         string playstyle = "Unknown";
 
         if (pb != null)
@@ -507,14 +525,14 @@ public class DebugHUD : MonoBehaviour
         }
         else
         {
-        // fallback to SaveRuntime values if tracker isn't present
-        if (SaveRuntime.Current != null)
-        {
-            meleeAtt = SaveRuntime.Current.meleeCount;
-            rangedAtt = SaveRuntime.Current.rangedCount;
-        }
-        // fallback to PlayerPrefs playstyle if available
-        if (PlayerPrefs.HasKey("Playstyle")) playstyle = PlayerPrefs.GetString("Playstyle");
+            // fallback to SaveRuntime values if tracker isn't present
+            if (SaveRuntime.Current != null)
+            {
+                meleeAtt = SaveRuntime.Current.meleeCount;
+                rangedAtt = SaveRuntime.Current.rangedCount;
+            }
+            // fallback to PlayerPrefs playstyle if available
+            if (PlayerPrefs.HasKey("Playstyle")) playstyle = PlayerPrefs.GetString("Playstyle");
         }
 
         GUILayout.Label($"Melee: {meleeAtt} | Ranged: {rangedAtt} (Playstyle: {playstyle})");

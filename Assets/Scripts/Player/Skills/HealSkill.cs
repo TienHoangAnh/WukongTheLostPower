@@ -14,7 +14,7 @@ public class HealSkill : ScriptableObject, ISkill
 
         if (Time.time < _lastUsedTime + cooldown)
         {
-            Debug.Log("⏳ HealSkill đang cooldown!");
+            Debug.Log("⏳ HealSkill đang cooldown! : " + Time.time );
             return;
         }
 
